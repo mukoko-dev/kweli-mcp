@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kweli-single-place-agent",
+  "main": "src/index.ts",
+  "account_id": "125a2dfbc21f76a25c980609609e8218",
+  "compatibility_date": "2025-04-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "durable_objects": {
+    "bindings": [{ "class_name": "SinglePlaceAgent", "name": "SINGLE_PLACE_AGENT" }]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["SinglePlaceAgent"]
+    }
+  ],
+
+  "routes": [{ "pattern": "fundi-place.nyuchi.dev", "custom_domain": true }],
+
+  "observability": { "enabled": true },
+
+  "dev": { "port": 8792 }
+}

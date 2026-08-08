@@ -1,0 +1,19 @@
+# Copy to `.dev.vars` for `wrangler dev` in this directory.
+# Never commit the real file. In production set secrets with `wrangler secret put`.
+
+# MongoDB connection string (the platform cluster Fundi writes tier-0 records to).
+MONGODB_URI="mongodb+srv://user:pass@cluster.example.mongodb.net/?retryWrites=true&w=majority"
+
+# what3words API key (write-time convenience layer). If absent, what3words is null.
+WHAT3WORDS_API_KEY="..."
+
+# Shared secret checked on POST /internal/force-run, called by apps/mcp-ingestion
+# over the BULK_AGENT service binding. Must match that app's same-named var.
+INTERNAL_FORCE_RUN_TOKEN="replace-with-`openssl rand -hex 32`"
+
+# Dev-only: allow the bundled African-capitals fallback when places.placesGeo
+# has no capital data. Never set "true" in production.
+# FUNDI_ALLOW_FALLBACK_CAPITALS="true"
+
+# Note: generate_description uses the Workers AI binding (Kimi via the shamwari
+# AI Gateway) — no API key needed.

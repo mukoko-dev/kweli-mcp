@@ -1,0 +1,25 @@
+{
+  "name": "@kweli-mcp/skills",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Fundi's agentic capability modules \u2014 Overpass lookup, OSM feature classification, AI description generation, Nominatim hierarchy resolution, tile-region math, What3Words + Wikidata enrichment, and the Mongo write-records step. Consumed by apps/bulk-ingestion-agent and apps/mcp-ingestion (the overpass_lookup/resolve_hierarchy MCP tools).",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@kweli-mcp/mongo": "workspace:*",
+    "@kweli-mcp/shared": "workspace:*",
+    "mongodb": "7.2.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260801.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.9.0"
+  }
+}

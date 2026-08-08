@@ -1,0 +1,36 @@
+{
+  "name": "kweli-mcp-ingestion",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Fundi's OAuth-gated ingestion MCP surface (seed_region, seed_admin_bulk, task_status, task_records, list_recent_places, overpass_lookup, resolve_hierarchy, compute_pluscode, list_geo_areas) plus the M2M-gated POST /tasks submit endpoint. Enqueues onto the shared fundi-ingestion-tasks queue that apps/bulk-ingestion-agent consumes.",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "start": "wrangler dev",
+    "cf-typegen": "wrangler types",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.8.1",
+    "@kweli-mcp/mongo": "workspace:*",
+    "@kweli-mcp/shared": "workspace:*",
+    "@kweli-mcp/skills": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "agents": "^0.16.2",
+    "bson": "7.2.0",
+    "hono": "^4.12.26",
+    "jose": "^6.2.3",
+    "mongodb": "7.2.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260801.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "wrangler": "^4.92.0",
+    "@types/node": "^25.9.0"
+  }
+}

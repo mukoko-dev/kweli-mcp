@@ -1,0 +1,41 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kweli-mcp-places",
+  "main": "src/index.ts",
+  "account_id": "125a2dfbc21f76a25c980609609e8218",
+  "compatibility_date": "2025-04-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // The second literal cross-worker binding in this monorepo: request_place
+  // forwards here. apps/single-place-agent owns its own queue/D1/DO — this
+  // binding is purely a synchronous "submit and get a task id back" call.
+  "services": [{ "binding": "SINGLE_PLACE_AGENT", "service": "kweli-single-place-agent" }],
+
+  // Cloudflare's native per-IP rate limiter — 60 req/min, mirroring kweli's
+  // own `barstool:mcp:${ip}` limit in app/mcp/route.ts. `namespace_id` is a
+  // placeholder — Cloudflare assigns the real one when this binding is first
+  // deployed; there's nothing to reserve up front.
+  "unsafe": {
+    "bindings": [
+      {
+        "name": "MCP_RATE_LIMITER",
+        "type": "ratelimit",
+        "namespace_id": "1001",
+        "simple": { "limit": 60, "period": 60 }
+      }
+    ]
+  },
+
+  "routes": [{ "pattern": "kweli-mcp.nyuchi.dev", "custom_domain": true }],
+
+  "observability": { "enabled": true },
+
+  "alias": {
+    "@mongodb-js/zstd": "./src/native-stub.js",
+    "kerberos": "./src/native-stub.js",
+    "mongodb-client-encryption": "./src/native-stub.js",
+    "snappy": "./src/native-stub.js"
+  },
+
+  "dev": { "port": 8791 }
+}

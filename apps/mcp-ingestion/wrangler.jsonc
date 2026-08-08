@@ -1,0 +1,67 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kweli-mcp-ingestion",
+  "main": "src/index.ts",
+  "account_id": "125a2dfbc21f76a25c980609609e8218",
+  "compatibility_date": "2025-04-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // FundiMcp (the MCP session surface) is a Cloudflare Agent — a SQLite-backed
+  // Durable Object. Owned entirely by this worker.
+  "durable_objects": {
+    "bindings": [{ "class_name": "FundiMcp", "name": "MCP_OBJECT" }]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["FundiMcp"]
+    }
+  ],
+
+  // Producer only on the shared queue — apps/bulk-ingestion-agent is the sole
+  // consumer.
+  "queues": {
+    "producers": [{ "queue": "fundi-ingestion-tasks", "binding": "TASK_QUEUE" }]
+  },
+
+  // Same D1 ledger as apps/bulk-ingestion-agent (shared database_id): that
+  // worker writes status/result, this one reads it for task_status /
+  // task_records and inserts new rows on submit (enqueue.ts).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fundi-ingestion-ledger",
+      "database_id": "1ca0ed44-20fc-4cd5-a6c1-86b40daf1041"
+    }
+  ],
+
+  // OAuth codes/tokens/state for @cloudflare/workers-oauth-provider.
+  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "7b3cb31f73744a73a6f4aef9a0aff61c" }],
+
+  // The literal cross-worker binding: a real Cloudflare service binding to
+  // apps/bulk-ingestion-agent, used by POST /internal/force-run/proxy. The
+  // fetch this makes never leaves Cloudflare's network.
+  "services": [{ "binding": "BULK_AGENT", "service": "kweli-bulk-ingestion-agent" }],
+
+  "routes": [{ "pattern": "fundi-ingestion.nyuchi.dev", "custom_domain": true }],
+
+  "observability": { "enabled": true },
+
+  "alias": {
+    "@mongodb-js/zstd": "./src/native-stub.js",
+    "kerberos": "./src/native-stub.js",
+    "mongodb-client-encryption": "./src/native-stub.js",
+    "snappy": "./src/native-stub.js"
+  },
+
+  "vars": {
+    "WORKOS_AUTHKIT_DOMAIN": "https://identity.nyuchi.com",
+    "WORKOS_AGENTS_M2M_CLIENT_ID": "client_01KV0ZZ4DK74YMEDYT22ARM1Y3",
+    "WORKOS_CLIENT_ID": "client_01KVTX0V2K1VM3PSC0DJ9VZWTV",
+    "WORKOS_ORGANIZATION_ID": "org_01KRDAB894DJF5V38PT5617TV1",
+    "WORKOS_ALLOWED_ORG_IDS": "org_01KRDAB894DJF5V38PT5617TV1",
+    "WORKOS_REQUIRED_PERMISSION": "mongodb:access"
+  },
+
+  "dev": { "port": 8789 }
+}

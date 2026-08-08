@@ -1,0 +1,25 @@
+{
+  "name": "@kweli-mcp/shared",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Shared ingestion-task domain code: the task/region/bulk-intent schemas, the D1 task ledger client, the Africa boundary guard, UUIDv7, Plus Codes, and bulk-intent generators. Consumed by apps/mcp-ingestion (producer) and apps/bulk-ingestion-agent (consumer).",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@kweli-mcp/mongo": "workspace:*",
+    "mongodb": "7.2.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260801.1",
+    "@types/node": "^25.9.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

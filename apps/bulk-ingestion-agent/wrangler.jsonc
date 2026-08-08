@@ -1,0 +1,83 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kweli-bulk-ingestion-agent",
+  "main": "src/index.ts",
+  "account_id": "125a2dfbc21f76a25c980609609e8218",
+  "compatibility_date": "2025-04-01",
+  // mongodb driver + the Agents SDK both require the Node.js compat layer.
+  "compatibility_flags": ["nodejs_compat"],
+
+  // FundiAgent (per-task executor) is a Cloudflare Agent — a SQLite-backed
+  // Durable Object. This worker OWNS the class + binding; apps/mcp-ingestion
+  // never binds it directly — it reaches this worker only via the
+  // `[[services]]` binding below (POST /internal/force-run) and the shared
+  // queue/D1 resources.
+  "durable_objects": {
+    "bindings": [{ "class_name": "FundiAgent", "name": "FUNDI_AGENT" }]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["FundiAgent"]
+    }
+  ],
+
+  // The task queue: this worker is the SOLE consumer. apps/mcp-ingestion is a
+  // producer on the same named queue (Cloudflare allows multiple producer
+  // workers on one queue; only one consumer worker per queue).
+  "queues": {
+    "consumers": [
+      {
+        "queue": "fundi-ingestion-tasks",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "dead_letter_queue": "fundi-ingestion-tasks-dlq"
+      }
+    ]
+  },
+
+  // D1 task ledger — shared with apps/mcp-ingestion (same database_id: this
+  // worker writes status/result, mcp-ingestion reads it for task_status /
+  // task_records). Create with `wrangler d1 create fundi-ingestion-ledger`
+  // (already exists in nyuchi/kweli's Cloudflare account — reuse that id,
+  // don't create a second ledger).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fundi-ingestion-ledger",
+      "database_id": "1ca0ed44-20fc-4cd5-a6c1-86b40daf1041",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // OSM-id dedupe / rate-limit cache.
+  "kv_namespaces": [{ "binding": "DEDUP_KV", "id": "7e726479ef2048c5b12e51bf1cc25141" }],
+
+  // Workers AI: generate_description routes through the shamwari AI Gateway.
+  "ai": { "binding": "AI" },
+
+  // Hourly sweeper for failed/partial stragglers.
+  "triggers": { "crons": ["0 * * * *"] },
+
+  "routes": [{ "pattern": "fundi-bulk.nyuchi.dev", "custom_domain": true }],
+
+  "observability": { "enabled": true },
+
+  // Keep the mongodb driver's optional native add-ons (.node binaries) out of
+  // the esbuild bundle; the driver runs fine without them.
+  "alias": {
+    "@mongodb-js/zstd": "./src/native-stub.js",
+    "kerberos": "./src/native-stub.js",
+    "mongodb-client-encryption": "./src/native-stub.js",
+    "snappy": "./src/native-stub.js"
+  },
+
+  "vars": {
+    "FUNDI_AI_MODEL": "workers-ai/@cf/moonshotai/kimi-k2.6",
+    "FUNDI_AI_GATEWAY": "shamwari",
+    "FUNDI_BOUNDARY_BBOX": "-36,-26,38,64"
+  },
+
+  "dev": { "port": 8790 }
+}

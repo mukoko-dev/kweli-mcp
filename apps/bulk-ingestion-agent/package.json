@@ -1,0 +1,31 @@
+{
+  "name": "kweli-bulk-ingestion-agent",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Fundi's bulk-ingestion executor \u2014 a Cloudflare Agent (FundiAgent, a SQLite-backed Durable Object), one instance per task, driving Overpass/Wikidata lookups, classification, and enrichment for region/country-scale place seeding. The direct working port of nyuchi/kweli's workers/fundi-ingestion agent runtime.",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "start": "wrangler dev",
+    "cf-typegen": "wrangler types",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@kweli-mcp/mongo": "workspace:*",
+    "@kweli-mcp/shared": "workspace:*",
+    "@kweli-mcp/skills": "workspace:*",
+    "agents": "^0.16.2",
+    "bson": "7.2.0",
+    "mongodb": "7.2.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260801.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "wrangler": "^4.92.0",
+    "@types/node": "^25.9.0"
+  }
+}

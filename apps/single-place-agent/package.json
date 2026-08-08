@@ -1,0 +1,27 @@
+{
+  "name": "kweli-single-place-agent",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "STUB \u2014 creates exactly one named place on request (vs. Fundi's area-based bulk seeding). Real Overpass/Nominatim resolution + write-records logic is not implemented yet; see agent-do.ts's TODO. The wiring (DO, service binding from apps/mcp-places) is real and working.",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "start": "wrangler dev",
+    "cf-typegen": "wrangler types",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@kweli-mcp/shared": "workspace:*",
+    "agents": "^0.16.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260801.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "wrangler": "^4.92.0",
+    "@types/node": "^25.9.0"
+  }
+}

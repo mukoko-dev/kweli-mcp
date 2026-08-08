@@ -1,0 +1,24 @@
+# Copy to `.dev.vars` for `wrangler dev` in this directory.
+# Never commit the real file. In production set secrets with `wrangler secret put`.
+
+# MongoDB connection string — same cluster apps/bulk-ingestion-agent writes to.
+MONGODB_URI="mongodb+srv://user:pass@cluster.example.mongodb.net/?retryWrites=true&w=majority"
+
+# Seals the OAuth provider's session cookie (openssl rand -base64 32).
+COOKIE_ENCRYPTION_KEY="..."
+
+# --- WorkOS M2M gate (client_credentials) for POST /tasks ---
+WORKOS_M2M_CLIENT_ID="client_..."   # the Fundi M2M application id (JWT aud)
+
+# Optional static bearer accepted on POST /tasks (server-to-server app surfaces,
+# e.g. nhimbe's reportSearchMiss / kweli's admin sync until they're migrated
+# to the M2M app above).
+# FUNDI_API_TOKEN="replace-with-`openssl rand -hex 32`"
+
+# Shared secret checked by apps/bulk-ingestion-agent's /internal/force-run.
+# Must match that app's same-named var.
+INTERNAL_FORCE_RUN_TOKEN="replace-with-`openssl rand -hex 32`"
+
+# Dev-only: allow the bundled African-capitals fallback when places.placesGeo
+# has no capital data. Never set "true" in production.
+# FUNDI_ALLOW_FALLBACK_CAPITALS="true"

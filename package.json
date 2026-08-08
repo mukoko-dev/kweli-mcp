@@ -1,0 +1,30 @@
+{
+  "name": "kweli-mcp",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Mukoko Kweli's agentic surface — MCP servers, ingestion agents, and their shared skills, as a turborepo of Cloudflare Workers.",
+  "packageManager": "pnpm@10.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "type-check": "turbo run type-check",
+    "lint": "turbo run lint",
+    "deploy": "turbo run deploy"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "^6.0.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "bson": "7.2.0",
+      "hono": "^4.12.26",
+      "@modelcontextprotocol/sdk": "1.29.0"
+    }
+  }
+}
