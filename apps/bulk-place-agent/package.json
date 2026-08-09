@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "The bulk place generator \u2014 a Cloudflare Agent (FundiAgent, a SQLite-backed Durable Object), one instance per task, driving Overpass/Wikidata lookups, classification, and enrichment for region/country-scale place seeding. Independent of the Kweli MCP: exposes its own public POST /tasks, WorkOS M2M gated and org-restricted, so any Nyuchi/Mukoko app can trigger a bulk seed directly.",
+  "description": "The bulk place generator — a Cloudflare Agent (FundiAgent, a SQLite-backed Durable Object), one instance per task, driving Overpass/Wikidata lookups, classification, and enrichment for region/country-scale place seeding. Independent of the Kweli MCP: exposes its own public POST /tasks, WorkOS M2M gated and org-restricted, so any Nyuchi/Mukoko app can trigger a bulk seed directly.",
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
@@ -17,18 +17,19 @@
     "@kweli-mcp/mongo": "workspace:*",
     "@kweli-mcp/shared": "workspace:*",
     "@kweli-mcp/skills": "workspace:*",
+    "@kweli-mcp/telemetry": "workspace:*",
     "@kweli-mcp/workos-m2m": "workspace:*",
     "agents": "^0.16.2",
     "bson": "7.2.0",
     "mongodb": "7.2.0",
-    "zod": "^4.4.3",
-    "@kweli-mcp/telemetry": "workspace:*"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.20.3",
     "@cloudflare/workers-types": "^5.20260801.1",
+    "@types/node": "^25.9.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.6",
-    "wrangler": "^4.92.0",
-    "@types/node": "^25.9.0"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.92.0"
   }
 }
