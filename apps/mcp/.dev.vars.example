@@ -1,0 +1,23 @@
+# Copy to `.dev.vars` for `wrangler dev` in this directory.
+# Never commit the real file. In production set secrets with `wrangler secret put`.
+
+# MongoDB connection string — the shared Mukoko cluster.
+MONGODB_URI="mongodb+srv://user:pass@cluster.example.mongodb.net/?retryWrites=true&w=majority"
+
+# Seals the OAuth provider's session cookie (openssl rand -base64 32).
+COOKIE_ENCRYPTION_KEY="..."
+
+# --- Outbound WorkOS M2M credentials — this MCP's OWN copy of each agent's
+# client_id/secret, exactly like any other Nyuchi/Mukoko app calling them.
+# Never share these between the two agents, and never reuse the interactive
+# OAuth WORKOS_CLIENT_ID (in wrangler.jsonc) for either of them.
+
+# bulk-place-agent's app: "Kweli Fundi" (org Nyuchi Africa). Not to be
+# confused with "Nyuchi Fundi Tester" — that's an unrelated app for
+# something else entirely.
+BULK_M2M_CLIENT_ID="client_01KZGMK14B53N6Z84GMJFW0ASC"
+BULK_M2M_CLIENT_SECRET="..." # generate in the WorkOS dashboard — not available via the admin API
+
+# single-place-agent's app: "Kweli" (org Nyuchi Africa).
+SINGLE_M2M_CLIENT_ID="client_01KZG8V8VVS6268W1ERMW7YBNE"
+SINGLE_M2M_CLIENT_SECRET="..." # generate in the WorkOS dashboard — not available via the admin API

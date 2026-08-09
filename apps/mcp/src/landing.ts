@@ -6,7 +6,7 @@ export function landingHtml(): string {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Fundi — place ingestion</title>
+    <title>Kweli MCP</title>
     <style>
       :root { color-scheme: light dark; }
       body { font: 16px/1.6 system-ui, sans-serif; max-width: 42rem; margin: 4rem auto; padding: 0 1.25rem; }
@@ -15,11 +15,14 @@ export function landingHtml(): string {
     </style>
   </head>
   <body>
-    <h1>Fundi</h1>
-    <p>Agentic ingestion worker for the Mukoko platform. It turns regions into
-      clean, sovereign, <strong>tier-0</strong> place and entity records.</p>
+    <h1>Kweli MCP</h1>
+    <p>Mukoko Kweli's agent-facing MCP — the trust graph (places, organizations,
+      verification) and place generation (bulk region seeding, single named-place
+      requests) in one server. Generation tools enqueue work on independent agents
+      (bulk-place-agent, single-place-agent) any Nyuchi/Mukoko app can also call
+      directly.</p>
     <p>The Model Context Protocol endpoint is at <code>/mcp</code>, gated by WorkOS
-      AuthKit — for the platform team only.</p>
+      AuthKit — for the platform team and org members only.</p>
     <p class="muted">© Nyuchi Web Services</p>
   </body>
 </html>`;

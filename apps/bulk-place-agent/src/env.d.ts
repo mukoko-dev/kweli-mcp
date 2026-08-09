@@ -20,6 +20,14 @@ declare global {
     FUNDI_AI_GATEWAY?: string;
     FUNDI_BOUNDARY_BBOX?: string;
     WHAT3WORDS_API_KEY?: string;
-    INTERNAL_FORCE_RUN_TOKEN?: string;
+
+    // WorkOS M2M — this agent's own dedicated application. Callers (the
+    // Kweli MCP, or any other Nyuchi/Mukoko app) authenticate as this
+    // client_id via client_credentials; WORKOS_ALLOWED_ORG_IDS restricts
+    // bulk seeding to members of the Nyuchi org (unlike single-place-agent,
+    // which has no org restriction).
+    WORKOS_AUTHKIT_DOMAIN: string;
+    WORKOS_M2M_CLIENT_ID: string;
+    WORKOS_ALLOWED_ORG_IDS?: string;
   }
 }

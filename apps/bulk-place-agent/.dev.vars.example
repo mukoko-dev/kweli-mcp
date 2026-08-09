@@ -7,9 +7,11 @@ MONGODB_URI="mongodb+srv://user:pass@cluster.example.mongodb.net/?retryWrites=tr
 # what3words API key (write-time convenience layer). If absent, what3words is null.
 WHAT3WORDS_API_KEY="..."
 
-# Shared secret checked on POST /internal/force-run, called by apps/mcp-ingestion
-# over the BULK_AGENT service binding. Must match that app's same-named var.
-INTERNAL_FORCE_RUN_TOKEN="replace-with-`openssl rand -hex 32`"
+# Note: this agent only VERIFIES inbound WorkOS M2M tokens (against
+# WORKOS_M2M_CLIENT_ID / WORKOS_ALLOWED_ORG_IDS in wrangler.jsonc, via JWKS) —
+# it never mints one, so it needs no client secret of its own. Any caller
+# (the Kweli MCP, or another Nyuchi/Mukoko app) mints its own token using
+# THIS agent's client_id/secret pair, which lives in the caller's secrets.
 
 # Dev-only: allow the bundled African-capitals fallback when places.placesGeo
 # has no capital data. Never set "true" in production.

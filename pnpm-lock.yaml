@@ -20,7 +20,7 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
-  apps/bulk-ingestion-agent:
+  apps/bulk-place-agent:
     dependencies:
       '@kweli-mcp/mongo':
         specifier: workspace:*
@@ -31,6 +31,9 @@ importers:
       '@kweli-mcp/skills':
         specifier: workspace:*
         version: link:../../packages/skills
+      '@kweli-mcp/workos-m2m':
+        specifier: workspace:*
+        version: link:../../packages/workos-m2m
       agents:
         specifier: ^0.16.2
         version: 0.16.2(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@cloudflare/workers-types@5.20260808.1)(ai@6.0.246(zod@4.4.3))(react@19.2.8)(rolldown@1.2.3)(vite@8.2.1(@types/node@25.9.5)(esbuild@0.28.1)(yaml@2.9.0))(zod@4.4.3)
@@ -40,6 +43,9 @@ importers:
       mongodb:
         specifier: 7.2.0
         version: 7.2.0(@mongodb-js/zstd@7.0.0)
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^5.20260801.1
@@ -57,7 +63,7 @@ importers:
         specifier: ^4.92.0
         version: 4.120.0(@cloudflare/workers-types@5.20260808.1)
 
-  apps/mcp-ingestion:
+  apps/mcp:
     dependencies:
       '@cloudflare/workers-oauth-provider':
         specifier: ^0.8.1
@@ -71,6 +77,9 @@ importers:
       '@kweli-mcp/skills':
         specifier: workspace:*
         version: link:../../packages/skills
+      '@kweli-mcp/workos-m2m':
+        specifier: workspace:*
+        version: link:../../packages/workos-m2m
       '@modelcontextprotocol/sdk':
         specifier: 1.29.0
         version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)
@@ -109,45 +118,29 @@ importers:
         specifier: ^4.92.0
         version: 4.120.0(@cloudflare/workers-types@5.20260808.1)
 
-  apps/mcp-places:
+  apps/single-place-agent:
     dependencies:
       '@kweli-mcp/mongo':
         specifier: workspace:*
         version: link:../../packages/mongo
+      '@kweli-mcp/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@kweli-mcp/skills':
+        specifier: workspace:*
+        version: link:../../packages/skills
+      '@kweli-mcp/workos-m2m':
+        specifier: workspace:*
+        version: link:../../packages/workos-m2m
+      agents:
+        specifier: ^0.16.2
+        version: 0.16.2(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@cloudflare/workers-types@5.20260808.1)(ai@6.0.246(zod@4.4.3))(react@19.2.8)(rolldown@1.2.3)(vite@8.2.1(@types/node@25.9.5)(esbuild@0.28.1)(yaml@2.9.0))(zod@4.4.3)
       bson:
         specifier: 7.2.0
         version: 7.2.0
       mongodb:
         specifier: 7.2.0
         version: 7.2.0(@mongodb-js/zstd@7.0.0)
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
-    devDependencies:
-      '@cloudflare/workers-types':
-        specifier: ^5.20260801.1
-        version: 5.20260808.1
-      '@types/node':
-        specifier: ^25.9.0
-        version: 25.9.5
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@25.9.5)(vite@8.2.1(@types/node@25.9.5)(esbuild@0.28.1)(yaml@2.9.0))
-      wrangler:
-        specifier: ^4.92.0
-        version: 4.120.0(@cloudflare/workers-types@5.20260808.1)
-
-  apps/single-place-agent:
-    dependencies:
-      '@kweli-mcp/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      agents:
-        specifier: ^0.16.2
-        version: 0.16.2(@babel/core@7.29.7)(@babel/runtime@7.29.7)(@cloudflare/workers-types@5.20260808.1)(ai@6.0.246(zod@4.4.3))(react@19.2.8)(rolldown@1.2.3)(vite@8.2.1(@types/node@25.9.5)(esbuild@0.28.1)(yaml@2.9.0))(zod@4.4.3)
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^5.20260801.1
@@ -252,6 +245,22 @@ importers:
       vitest:
         specifier: ^4.1.6
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@25.9.5)(vite@8.2.1(@types/node@25.9.5)(esbuild@0.28.1)(yaml@2.9.0))
+
+  packages/workos-m2m:
+    dependencies:
+      jose:
+        specifier: ^6.2.3
+        version: 6.2.8
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^5.20260801.1
+        version: 5.20260808.1
+      '@types/node':
+        specifier: ^25.9.0
+        version: 25.9.5
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
 
 packages:
 

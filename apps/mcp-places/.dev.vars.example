@@ -1,5 +1,0 @@
-# Copy to `.dev.vars` for `wrangler dev` in this directory.
-# Never commit the real file. In production set secrets with `wrangler secret put`.
-
-# MongoDB connection string — the same shared Mukoko cluster kweli reads.
-MONGODB_URI="mongodb+srv://user:pass@cluster.example.mongodb.net/?retryWrites=true&w=majority"

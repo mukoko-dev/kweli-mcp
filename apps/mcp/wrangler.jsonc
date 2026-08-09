@@ -1,0 +1,73 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kweli-mcp",
+  "main": "src/index.ts",
+  "account_id": "125a2dfbc21f76a25c980609609e8218",
+  "compatibility_date": "2025-04-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // KweliMcp (the MCP session surface) is a Cloudflare Agent — a
+  // SQLite-backed Durable Object.
+  "durable_objects": {
+    "bindings": [{ "class_name": "KweliMcp", "name": "MCP_OBJECT" }]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["KweliMcp"]
+    }
+  ],
+
+  // Read-only from this worker's side: bulk-place-agent writes it,
+  // task_status/task_records here just read it.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fundi-ingestion-ledger",
+      "database_id": "1ca0ed44-20fc-4cd5-a6c1-86b40daf1041"
+    }
+  ],
+
+  // OAuth codes/tokens/state for @cloudflare/workers-oauth-provider.
+  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "7b3cb31f73744a73a6f4aef9a0aff61c" }],
+
+  // The two literal cross-worker bindings: seed_region/seed_admin_bulk call
+  // bulk-place-agent, request_place calls single-place-agent. Both fetches
+  // never leave Cloudflare's network — but each is still WorkOS M2M-gated on
+  // the agent side, using THIS worker's own credentials (BULK_M2M_*,
+  // SINGLE_M2M_* below), exactly like any other caller.
+  "services": [
+    { "binding": "BULK_PLACE_AGENT", "service": "kweli-bulk-place-agent" },
+    { "binding": "SINGLE_PLACE_AGENT", "service": "kweli-single-place-agent" }
+  ],
+
+  "routes": [{ "pattern": "kweli-mcp.nyuchi.dev", "custom_domain": true }],
+
+  "observability": { "enabled": true },
+
+  "alias": {
+    "@mongodb-js/zstd": "./src/native-stub.js",
+    "kerberos": "./src/native-stub.js",
+    "mongodb-client-encryption": "./src/native-stub.js",
+    "snappy": "./src/native-stub.js"
+  },
+
+  "vars": {
+    // Interactive OAuth (Authorization Code + PKCE) — browser/MCP-client
+    // login, org-scoped.
+    "WORKOS_AUTHKIT_DOMAIN": "https://identity.nyuchi.com",
+    "WORKOS_CLIENT_ID": "client_01KVTX0V2K1VM3PSC0DJ9VZWTV",
+    "WORKOS_ORGANIZATION_ID": "org_01KRDAB894DJF5V38PT5617TV1",
+    "WORKOS_ALLOWED_ORG_IDS": "org_01KRDAB894DJF5V38PT5617TV1",
+    "WORKOS_REQUIRED_PERMISSION": "mongodb:access",
+    // Outbound M2M client_id for calling bulk-place-agent ("Kweli Fundi" —
+    // its secret is a `wrangler secret put BULK_M2M_CLIENT_SECRET`, never a
+    // var).
+    "BULK_M2M_CLIENT_ID": "client_01KZGMK14B53N6Z84GMJFW0ASC",
+    // Outbound M2M client_id for calling single-place-agent ("Kweli" — its
+    // secret is a `wrangler secret put SINGLE_M2M_CLIENT_SECRET`).
+    "SINGLE_M2M_CLIENT_ID": "client_01KZG8V8VVS6268W1ERMW7YBNE"
+  },
+
+  "dev": { "port": 8789 }
+}

@@ -1,38 +1,62 @@
 # Migration status: fundi-ingestion → kweli-mcp
 
-`nyuchi/kweli`'s `workers/fundi-ingestion/` is the origin of the code in
-`apps/bulk-ingestion-agent/` and `apps/mcp-ingestion/` in this repo. Per the
+`nyuchi/kweli`'s `workers/fundi-ingestion/` is the origin of the code now
+split across `apps/bulk-place-agent/` and `apps/mcp/` in this repo. Per the
 agreed migration mode ("copy now, remove from kweli later"):
 
-- **Done in this PR:** the working logic (agent.ts, agent-do.ts, mcp.ts,
+- **Done so far:** the working logic (agent.ts, agent-do.ts, mcp.ts,
   enqueue.ts, the OAuth/M2M plumbing, all `skills/*`, the D1 ledger, the
   boundary guard, Plus Codes, bulk-intent generators) is copied here,
-  redistributed across `apps/bulk-ingestion-agent`, `apps/mcp-ingestion`, and
-  the shared `packages/{mongo,shared,skills}`, with the single worker split
-  into two (MCP-facing vs. executor) that share the `fundi-ingestion-tasks`
-  queue and the `fundi-ingestion-ledger` D1 database by resource id — plus one
-  new real `[[services]]` binding (`mcp-ingestion` → `bulk-ingestion-agent`,
-  `/internal/force-run`) that didn't exist in the single-worker version.
+  redistributed across `apps/bulk-place-agent`, `apps/mcp`, and the shared
+  `packages/{mongo,shared,skills,workos-m2m}`. The original single fundi
+  worker split into three, on a deliberate design: **the agents
+  (`bulk-place-agent`, `single-place-agent`) are independent of the MCP** —
+  each owns its own public `POST /tasks`, gated by a WorkOS M2M
+  `client_credentials` token from its own dedicated application
+  (`bulk-place-agent` additionally org-restricted via
+  `WORKOS_ALLOWED_ORG_IDS`; `single-place-agent` is not). `apps/mcp` (the
+  Kweli MCP, WorkOS OAuth-gated for interactive/agent clients) authenticates
+  to both agents the exact same way any other Nyuchi/Mukoko app would — it
+  mints its own M2M token per agent and calls `POST /tasks` over a
+  `[[services]]` binding. There is no special internal-trust bypass.
 - **NOT done yet:** `nyuchi/kweli`'s `workers/fundi-ingestion/` directory
-  still exists and is still the deployed, production `fundi-ingestion.nyuchi.dev`
-  worker. `lib/services/fundi.service.ts` (kweli's own admin sync) and
-  nhimbe's `src/app/actions/geocode.ts` `reportSearchMiss()` still point at
-  it. **Do not delete `workers/fundi-ingestion/` from `nyuchi/kweli` until:**
-  1. `apps/bulk-ingestion-agent` and `apps/mcp-ingestion` are deployed here
-     and verified against a real task end-to-end (submit → queue → DO →
-     Mongo write → D1 status).
-  2. The D1 database (`fundi-ingestion-ledger`, id
+  still exists and is still the deployed, production
+  `fundi-ingestion.nyuchi.dev` worker. `lib/services/fundi.service.ts`
+  (kweli's own admin sync) and nhimbe's `src/app/actions/geocode.ts`
+  `reportSearchMiss()` still point at it. **Do not delete
+  `workers/fundi-ingestion/` from `nyuchi/kweli` until:**
+  1. `apps/bulk-place-agent`, `apps/single-place-agent`, and `apps/mcp` are
+     deployed here and verified against a real task end-to-end (submit →
+     queue → DO → Mongo write → D1 status), including a real WorkOS M2M
+     round-trip (mint → verify) for each agent.
+  2. ~~Two more WorkOS M2M applications are registered for real~~ **Done.**
+     Two brand-new dedicated M2M applications now exist, both org Nyuchi
+     Africa: **"Kweli Fundi"** (`client_01KZGMK14B53N6Z84GMJFW0ASC`) for
+     `bulk-place-agent`, and **"Kweli"**
+     (`client_01KZG8V8VVS6268W1ERMW7YBNE`) for `single-place-agent` (no org
+     restriction enforced at the agent). Neither reuses **"Nyuchi Fundi
+     Tester"** — an existing M2M app that looked like a natural fit by name
+     but is unrelated, for something else entirely — nor the original
+     fundi-ingestion config's `WORKOS_AGENTS_M2M_CLIENT_ID` comment
+     (`client_01KV0ZZ4DK74YMEDYT22ARM1Y3`, which turned out not to exist in
+     either WorkOS environment). **Still outstanding:** a human must
+     generate each app's client secret in the WorkOS dashboard — that step
+     is deliberately not exposed via the admin API/MCP surface — and set it
+     as `BULK_M2M_CLIENT_SECRET` / `SINGLE_M2M_CLIENT_SECRET` on `apps/mcp`
+     (and on any other app that calls these agents directly).
+  3. The D1 database (`fundi-ingestion-ledger`, id
      `1ca0ed44-20fc-4cd5-a6c1-86b40daf1041`) and KV namespace
      (`fundi-ingestion-tasks` dedup, id `7e726479ef2048c5b12e51bf1cc25141`)
      are re-pointed or migrated — this repo's wrangler configs reuse the
      *same* resource ids on the assumption the old worker is retired, not
      running in parallel against the same D1/queue.
-  3. `kweli`'s `lib/services/fundi.service.ts` and nhimbe's
-     `reportSearchMiss()` are repointed at the new `fundi-bulk.nyuchi.dev` /
-     `fundi-ingestion.nyuchi.dev` split (whichever domain ends up owning
-     `POST /tasks` — currently `apps/mcp-ingestion`).
-  4. A follow-up PR on `nyuchi/kweli` deletes `workers/fundi-ingestion/` and
+  4. `kweli`'s `lib/services/fundi.service.ts` and nhimbe's
+     `reportSearchMiss()` are repointed at `bulk-place-agent`'s new
+     `fundi-bulk.nyuchi.dev` domain, and switched from a static bearer token
+     to minting a WorkOS M2M token (see `packages/workos-m2m/src/mint.ts`
+     for the exact call shape).
+  5. A follow-up PR on `nyuchi/kweli` deletes `workers/fundi-ingestion/` and
      updates its `CLAUDE.md`.
 
-Until step 4, treat `nyuchi/kweli`'s copy as the live source of truth and
+Until step 5, treat `nyuchi/kweli`'s copy as the live source of truth and
 this repo's copy as staged, not yet serving production traffic.

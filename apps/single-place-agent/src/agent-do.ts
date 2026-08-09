@@ -1,35 +1,45 @@
 /**
- * SinglePlaceAgent — STUB. Fills the gap the cross-repo audit found: today
- * Fundi only does area-based bulk seeding (seed_region/seed_admin_bulk);
- * there is no deterministic "create exactly this one named place" primitive,
- * which nhimbe's "create an event for your company → verify this place" flow
- * needs (a search-miss on a brand-new company office shouldn't require a
- * tile/radius sweep).
+ * SinglePlaceAgent — creates exactly one named place on request. Fills the
+ * gap the cross-repo audit found: Fundi's bulk agent only does area-based
+ * seeding (seed_region/seed_admin_bulk); this is the deterministic "create
+ * exactly this one named place" primitive nhimbe's "create an event for
+ * your company → verify this place" flow needs (a search-miss on a
+ * brand-new company office shouldn't require a tile/radius sweep).
  *
- * TODO (real implementation, in priority order):
- *   1. Resolve the place deterministically: prefer lat/lng if given (a tight
- *      Overpass point_radius lookup via @kweli-mcp/skills' overpassLookup,
- *      matched by name similarity to the OSM feature at that point);
- *      otherwise geocode `address` via Nominatim first (resolveHierarchy
- *      already wraps this for hierarchy — reuse its Nominatim call, or add a
- *      forward-geocode variant).
- *   2. If no OSM feature matches closely enough, still create the place from
- *      just the given name + coordinates/address — a manual single-place
- *      request is allowed to be sparser than a bulk-ingested OSM feature.
- *   3. Write via @kweli-mcp/skills' writeRecords (place + owner entity, tier
- *      0, source.kind: "ops_mcp", same Bundu-Commons-vs-owned-entity
- *      convention as bulk ingestion).
- *   4. Record the outcome in a D1 ledger (own table — do NOT write into the
- *      fundi-ingestion-tasks ledger schema, this is a different task shape)
- *      so /tasks/{taskId} (a future GET) can be polled.
+ * Unlike bulk-place-agent, this runs synchronously within the request: one
+ * Overpass point lookup, one Nominatim call, one Mongo write — fast enough
+ * to not need a queue. `submit()` returns the final outcome directly rather
+ * than a status to poll.
  *
- * Until then, this Agent only validates input, allocates a taskId, and
- * returns `status: "not_implemented"` — real, working wiring (the service
- * binding from apps/mcp-places, the DO, the queue) with an honest stub body.
+ * Resolution order:
+ *   1. Coordinates: use lat/lng directly if given, else forward-geocode
+ *      `address` via Nominatim.
+ *   2. A tight (~75m) Overpass lookup at that point, matched by loose name
+ *      similarity — if OSM already has this place, use its real tags
+ *      (richer classification) instead of guessing.
+ *   3. No match → synthesize a minimal feature from just the name + point.
+ *      A manual single-place request is allowed to be sparser than a
+ *      bulk-ingested OSM feature; every synthetic feature defaults to
+ *      LocalBusiness (the driving use case is "my company's office").
+ *   4. Write via @kweli-mcp/skills' writeRecords — same tier-0,
+ *      Bundu-Commons-vs-owned-entity convention as bulk ingestion.
+ *
+ * Synthetic (non-OSM) features get a negative numeric id — real OSM element
+ * ids are always positive — so they can never collide with a genuine OSM
+ * record in the shared `sourceProvenance.legacyId` dedup key.
  */
 
 import { Agent } from "agents";
-import { uuidv7 } from "@kweli-mcp/shared";
+import { buildClient, DB } from "@kweli-mcp/mongo";
+import { encodePlusCode } from "@kweli-mcp/shared";
+import {
+  classify,
+  overpassLookup,
+  osmKey,
+  resolveHierarchy,
+  writeRecords,
+  type OsmFeature,
+} from "@kweli-mcp/skills";
 
 export interface SinglePlaceRequest {
   name: string;
@@ -39,21 +49,149 @@ export interface SinglePlaceRequest {
   source?: { kind: string; requestedByPersonId?: string };
 }
 
+export interface SinglePlaceResult {
+  taskId: string;
+  status: "done" | "failed";
+  placeId?: string;
+  entityId?: string | null;
+  error?: string;
+}
+
 export interface SinglePlaceState {
   request: SinglePlaceRequest | null;
-  status: "queued" | "not_implemented";
-  taskId: string | null;
+  status: "queued" | "done" | "failed";
+  result: SinglePlaceResult | null;
+}
+
+const OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter";
+const NOMINATIM_ENDPOINT = "https://nominatim.openstreetmap.org";
+const USER_AGENT = "Mukoko-Platform/1.0 (hello@nyuchi.com)";
+// ~75m at the equator; generous enough to catch the same building, tight
+// enough that it never pulls in an unrelated neighbour.
+const LOOKUP_RADIUS_DEGREES = 0.0007;
+
+async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+  const url = `${NOMINATIM_ENDPOINT}/search?format=json&limit=1&q=${encodeURIComponent(address)}`;
+  const res = await fetch(url, { headers: { "user-agent": USER_AGENT, "accept-language": "en" } });
+  if (!res.ok) throw new Error(`Nominatim search ${res.status}: ${await res.text()}`);
+  const results = (await res.json()) as Array<{ lat: string; lon: string }>;
+  const first = results[0];
+  if (!first) return null;
+  return { lat: Number(first.lat), lng: Number(first.lon) };
+}
+
+function nameMatches(requested: string, candidate: string | null): boolean {
+  if (!candidate) return false;
+  const a = requested.trim().toLowerCase();
+  const b = candidate.trim().toLowerCase();
+  return a === b || a.includes(b) || b.includes(a);
+}
+
+function synthesizeFeature(name: string, lat: number, lng: number): OsmFeature {
+  // Negative, so it can never collide with a real (always-positive) OSM id.
+  const id = -(Date.now() * 1000 + Math.floor(Math.random() * 1000));
+  return { type: "node", id, lat, lon: lng, tags: { name } };
 }
 
 export class SinglePlaceAgent extends Agent<Env, SinglePlaceState> {
-  initialState: SinglePlaceState = { request: null, status: "queued", taskId: null };
+  initialState: SinglePlaceState = { request: null, status: "queued", result: null };
 
-  async submit(request: SinglePlaceRequest): Promise<{ taskId: string; status: string }> {
-    const taskId = uuidv7();
-    this.setState({ request, status: "not_implemented", taskId });
+  async submit(request: SinglePlaceRequest): Promise<SinglePlaceResult> {
+    const taskId = this.name; // the DO's own id (crypto.randomUUID(), set by the caller)
+    this.setState({ request, status: "queued", result: null });
+
+    try {
+      const result = await this.resolveAndWrite(taskId, request);
+      this.setState({ request, status: "done", result });
+      return result;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      console.error("single-place submit failed", { taskId, error: message });
+      const result: SinglePlaceResult = { taskId, status: "failed", error: "could not create place" };
+      this.setState({ request, status: "failed", result });
+      return result;
+    }
+  }
+
+  private async resolveAndWrite(taskId: string, request: SinglePlaceRequest): Promise<SinglePlaceResult> {
+    let lat = request.lat;
+    let lng = request.lng;
+    if (lat === undefined || lng === undefined) {
+      if (!request.address) {
+        return { taskId, status: "failed", error: "either lat/lng or address is required" };
+      }
+      const geocoded = await geocodeAddress(request.address);
+      if (!geocoded) {
+        return { taskId, status: "failed", error: `could not geocode address: ${request.address}` };
+      }
+      lat = geocoded.lat;
+      lng = geocoded.lng;
+    }
+
+    const uri = this.env.MONGODB_URI;
+    if (!uri) throw new Error("MONGODB_URI is not configured on the worker");
+    const client = buildClient(uri);
+    await client.connect();
+    const placesDb = client.db(DB.places);
+    const entityDb = client.db(DB.entity);
+
+    // Best-effort: if OSM already has this exact place, use its real tags.
+    let feature: OsmFeature | null = null;
+    try {
+      const nearby = await overpassLookup(
+        { endpoint: OVERPASS_ENDPOINT },
+        {
+          s: lat - LOOKUP_RADIUS_DEGREES,
+          w: lng - LOOKUP_RADIUS_DEGREES,
+          n: lat + LOOKUP_RADIUS_DEGREES,
+          e: lng + LOOKUP_RADIUS_DEGREES,
+        },
+        "all",
+      );
+      feature = nearby.find((f) => nameMatches(request.name, f.tags.name ?? null)) ?? null;
+    } catch (e) {
+      // Overpass being unavailable never blocks a manual single-place
+      // request — fall through to the synthetic feature.
+      console.error("overpass lookup failed, continuing without it", {
+        taskId,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+
+    const resolvedFeature = feature ?? synthesizeFeature(request.name, lat, lng);
+    const classification = feature
+      ? classify(feature)
+      : { isBusiness: true, placeType: ["LocalBusiness"] as const, schemaOrgType: "LocalBusiness" as const, name: request.name };
+
+    const hierarchy = await resolveHierarchy({ endpoint: NOMINATIM_ENDPOINT }, placesDb, lat, lng);
+
+    const outcome = await writeRecords(placesDb, entityDb, {
+      feature: resolvedFeature,
+      classification: { ...classification, placeType: [...classification.placeType] },
+      name: request.name,
+      plusCode: encodePlusCode(lat, lng, 10),
+      what3words: null,
+      wikidata: null,
+      description: null,
+      dataConfidence: feature ? 0.9 : 0.5,
+      hierarchy: {
+        containedInPlaceId: hierarchy.containedInPlaceId,
+        countryId: hierarchy.countryId,
+        provinceId: hierarchy.provinceId,
+      },
+    });
+
     console.log(
-      JSON.stringify({ worker: "kweli-single-place-agent", event: "submit.stub", taskId, name: request.name }),
+      JSON.stringify({
+        worker: "kweli-single-place-agent",
+        event: "submit.done",
+        taskId,
+        osmMatch: Boolean(feature),
+        osmKey: osmKey(resolvedFeature),
+        ...outcome,
+      }),
     );
-    return { taskId, status: "not_implemented" };
+
+    return { taskId, status: "done", placeId: outcome.placeId, entityId: outcome.entityId };
   }
 }

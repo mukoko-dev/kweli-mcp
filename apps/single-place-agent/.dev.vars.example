@@ -1,0 +1,12 @@
+# Copy to `.dev.vars` for `wrangler dev` in this directory.
+# Never commit the real file.
+
+# This agent only VERIFIES inbound WorkOS M2M tokens (against
+# WORKOS_M2M_CLIENT_ID in wrangler.jsonc, via JWKS) — it never mints one, so
+# it needs no client secret of its own. Any caller (the Kweli MCP, or another
+# Nyuchi/Mukoko app) mints its own token using THIS agent's client_id/secret
+# pair, which lives in the caller's secrets, distinct from bulk-place-agent's.
+
+# MongoDB connection string — the same shared Mukoko cluster bulk-place-agent
+# writes to.
+MONGODB_URI="mongodb+srv://user:pass@cluster.example.mongodb.net/?retryWrites=true&w=majority"

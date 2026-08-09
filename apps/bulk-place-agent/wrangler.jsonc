@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "kweli-bulk-ingestion-agent",
+  "name": "kweli-bulk-place-agent",
   "main": "src/index.ts",
   "account_id": "125a2dfbc21f76a25c980609609e8218",
   "compatibility_date": "2025-04-01",
@@ -8,10 +8,9 @@
   "compatibility_flags": ["nodejs_compat"],
 
   // FundiAgent (per-task executor) is a Cloudflare Agent — a SQLite-backed
-  // Durable Object. This worker OWNS the class + binding; apps/mcp-ingestion
-  // never binds it directly — it reaches this worker only via the
-  // `[[services]]` binding below (POST /internal/force-run) and the shared
-  // queue/D1 resources.
+  // Durable Object. This worker owns the class + binding; nothing else binds
+  // it directly — other callers (the Kweli MCP, or any Nyuchi/Mukoko app)
+  // reach this worker only via its public POST /tasks (WorkOS M2M gated).
   "durable_objects": {
     "bindings": [{ "class_name": "FundiAgent", "name": "FUNDI_AGENT" }]
   },
@@ -22,10 +21,11 @@
     }
   ],
 
-  // The task queue: this worker is the SOLE consumer. apps/mcp-ingestion is a
-  // producer on the same named queue (Cloudflare allows multiple producer
-  // workers on one queue; only one consumer worker per queue).
+  // This worker is BOTH producer (POST /tasks, the cron sweeper) and
+  // consumer of its own queue — unlike the earlier two-worker split, no
+  // other worker needs producer access now that /tasks lives here.
   "queues": {
+    "producers": [{ "queue": "fundi-ingestion-tasks", "binding": "TASK_QUEUE" }],
     "consumers": [
       {
         "queue": "fundi-ingestion-tasks",
@@ -37,11 +37,10 @@
     ]
   },
 
-  // D1 task ledger — shared with apps/mcp-ingestion (same database_id: this
-  // worker writes status/result, mcp-ingestion reads it for task_status /
-  // task_records). Create with `wrangler d1 create fundi-ingestion-ledger`
-  // (already exists in nyuchi/kweli's Cloudflare account — reuse that id,
-  // don't create a second ledger).
+  // D1 task ledger — shared with apps/mcp (the Kweli MCP reads it for its
+  // task_status/task_records tools). Create with
+  // `wrangler d1 create fundi-ingestion-ledger` (already exists in
+  // nyuchi/kweli's Cloudflare account — reuse that id).
   "d1_databases": [
     {
       "binding": "DB",
@@ -76,7 +75,16 @@
   "vars": {
     "FUNDI_AI_MODEL": "workers-ai/@cf/moonshotai/kimi-k2.6",
     "FUNDI_AI_GATEWAY": "shamwari",
-    "FUNDI_BOUNDARY_BBOX": "-36,-26,38,64"
+    "FUNDI_BOUNDARY_BBOX": "-36,-26,38,64",
+    // WorkOS M2M — this agent's OWN dedicated application ("Kweli Fundi",
+    // org Nyuchi Africa; distinct from single-place-agent's "Kweli" app —
+    // and from "Nyuchi Fundi Tester", an unrelated app for something else
+    // entirely, never reuse it here). Callers authenticate as this
+    // client_id via client_credentials; only the Nyuchi org may trigger
+    // bulk seeding.
+    "WORKOS_AUTHKIT_DOMAIN": "https://identity.nyuchi.com",
+    "WORKOS_M2M_CLIENT_ID": "client_01KZGMK14B53N6Z84GMJFW0ASC",
+    "WORKOS_ALLOWED_ORG_IDS": "org_01KRDAB894DJF5V38PT5617TV1"
   },
 
   "dev": { "port": 8790 }

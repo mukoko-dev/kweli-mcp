@@ -74,7 +74,7 @@ app.get("/", (c) => {
 });
 
 app.get("/health", (c) => {
-  return c.json({ worker: "fundi-ingestion", status: "ok" });
+  return c.json({ worker: "kweli-mcp", status: "ok" });
 });
 
 function serveIcon() {
@@ -115,7 +115,7 @@ app.get("/authorize", async (c) => {
       description:
         "Authenticated MCP for agentic place ingestion. WorkOS verifies your identity before the MCP client gets access.",
       logo: new URL("/icon.svg", c.req.url).href,
-      name: "Fundi MCP",
+      name: "Kweli MCP",
     },
     setCookie,
     state: { oauthReqInfo },
@@ -298,4 +298,4 @@ app.get("/callback", async (c) => {
   return new Response(null, { status: 302, headers });
 });
 
-export const FundiAuthkitHandler = app;
+export const KweliAuthkitHandler = app;

@@ -1,20 +1,24 @@
-// WorkOS M2M (machine-to-machine) auth. Internal, platform-team-only services
-// authenticate with the client_credentials grant: a caller exchanges its
-// client_id/secret at https://<authkit_domain>/oauth2/token for a short-lived
-// JWT, then sends it as `Authorization: Bearer <jwt>`. We verify that JWT
-// statelessly against the environment JWKS — no OAuth redirect, no session KV.
+// WorkOS M2M (machine-to-machine) auth — the AGENT side. Any Nyuchi/Mukoko
+// app (including the Kweli MCP itself) authenticates with the
+// client_credentials grant: exchange a client_id/secret at
+// https://<authkit_domain>/oauth2/token for a short-lived JWT, then send it
+// as `Authorization: Bearer <jwt>`. This module verifies that JWT statelessly
+// against the environment JWKS — no OAuth redirect, no session KV. Pair with
+// `mint.ts` on the calling side.
 //
 // Verification (per WorkOS docs):
 //   • signature  — https://<authkit_domain>/oauth2/jwks (cached by jose)
 //   • iss        — https://<authkit_domain>
-//   • aud        — our M2M application client id(s)
-//   • org_id     — optional allowlist for the granted third party
+//   • aud        — this agent's own M2M application client id
+//   • org_id     — optional allowlist; omit to accept any org (e.g.
+//                  single-place-agent intentionally has no org restriction,
+//                  while bulk-place-agent does)
 
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 
 export interface M2MConfig {
   authkitDomain: string; // e.g. https://your-env.authkit.app (no trailing slash)
-  audience: string[]; // allowed `aud` — our M2M app client id(s)
+  audience: string[]; // allowed `aud` — this agent's own M2M app client id(s)
   allowedOrgIds?: string[];
 }
 
@@ -25,20 +29,14 @@ function stripTrailingSlashes(s: string): string {
   return s.slice(0, end);
 }
 
-export function m2mConfig(
-  env: {
-    WORKOS_AUTHKIT_DOMAIN?: string;
-    WORKOS_M2M_CLIENT_ID?: string;
-    WORKOS_ALLOWED_ORG_IDS?: string;
-  },
-  // Override the expected `aud` (comma-separated) to gate a surface against a
-  // different M2M application — e.g. /mcp (internal MCP app) vs /tasks (fundi
-  // agents app). Defaults to WORKOS_M2M_CLIENT_ID (the internal MCP app).
-  audienceCsv?: string,
-): M2MConfig | null {
+export function m2mConfig(env: {
+  WORKOS_AUTHKIT_DOMAIN?: string;
+  WORKOS_M2M_CLIENT_ID?: string;
+  WORKOS_ALLOWED_ORG_IDS?: string;
+}): M2MConfig | null {
   const trimmed = env.WORKOS_AUTHKIT_DOMAIN?.trim();
   const authkitDomain = trimmed ? stripTrailingSlashes(trimmed) : undefined;
-  const audience = (audienceCsv ?? env.WORKOS_M2M_CLIENT_ID ?? "")
+  const audience = (env.WORKOS_M2M_CLIENT_ID ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
@@ -94,8 +92,7 @@ export function denyResponse(status: number, error: string): Response {
     status,
     headers: {
       "content-type": "application/json",
-      // Signals bearer auth to clients without advertising an OAuth flow.
-      "WWW-Authenticate": 'Bearer realm="mcp", error="invalid_token"',
+      "WWW-Authenticate": 'Bearer realm="tasks", error="invalid_token"',
     },
   });
 }

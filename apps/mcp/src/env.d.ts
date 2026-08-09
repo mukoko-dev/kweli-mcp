@@ -3,16 +3,14 @@
 // command needs a live Cloudflare account/session this sandbox doesn't have).
 // Keep this in sync with wrangler.jsonc's bindings by hand until then.
 
-import type { FundiMcp } from "./mcp";
-import type { SeedTask } from "@kweli-mcp/shared";
+import type { KweliMcp } from "./mcp";
 import type OAuthProvider from "@cloudflare/workers-oauth-provider";
 
 export {};
 
 declare global {
   interface Env {
-    MCP_OBJECT: DurableObjectNamespace<FundiMcp>;
-    TASK_QUEUE: Queue<SeedTask>;
+    MCP_OBJECT: DurableObjectNamespace<KweliMcp>;
     DB: D1Database;
     OAUTH_KV: KVNamespace;
     // Injected by @cloudflare/workers-oauth-provider at fetch time — not a
@@ -21,18 +19,23 @@ declare global {
 
     MONGODB_URI: string;
     COOKIE_ENCRYPTION_KEY: string;
+
+    // Interactive OAuth (Authorization Code + PKCE) — browser/MCP-client login.
     WORKOS_AUTHKIT_DOMAIN: string;
     WORKOS_CLIENT_ID: string;
     WORKOS_ORGANIZATION_ID?: string;
     WORKOS_ALLOWED_ORG_IDS?: string;
     WORKOS_REQUIRED_PERMISSION?: string;
-    WORKOS_M2M_CLIENT_ID?: string;
-    WORKOS_AGENTS_M2M_CLIENT_ID?: string;
-    FUNDI_API_TOKEN?: string;
 
-    // The literal cross-worker binding: apps/bulk-ingestion-agent's fetch
-    // handler, reachable only from within Cloudflare's network.
-    BULK_AGENT: Fetcher;
-    INTERNAL_FORCE_RUN_TOKEN?: string;
+    // Outbound M2M — the Kweli MCP's OWN credentials for calling each
+    // independent agent, distinct per agent (never shared with the
+    // interactive OAuth app above, and never shared between the two agents).
+    BULK_PLACE_AGENT: Fetcher;
+    BULK_M2M_CLIENT_ID: string;
+    BULK_M2M_CLIENT_SECRET: string;
+
+    SINGLE_PLACE_AGENT: Fetcher;
+    SINGLE_M2M_CLIENT_ID: string;
+    SINGLE_M2M_CLIENT_SECRET: string;
   }
 }
