@@ -37,5 +37,11 @@ declare global {
     SINGLE_PLACE_AGENT: Fetcher;
     SINGLE_M2M_CLIENT_ID: string;
     SINGLE_M2M_CLIENT_SECRET: string;
+
+    // Telemetry (optional). The D1 `DB` binding above doubles as the
+    // `agent_events` sink; OTLP export activates when an endpoint is set.
+    OTLP_ENDPOINT?: string;
+    OTLP_HEADERS?: string;
+    TELEMETRY_D1_DISABLED?: string;
   }
 }

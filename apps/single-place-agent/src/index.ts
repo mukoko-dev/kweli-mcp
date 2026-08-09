@@ -10,6 +10,7 @@
 
 import { getAgentByName } from "agents";
 import { m2mConfig, verifyM2M, denyResponse } from "@kweli-mcp/workos-m2m";
+import { formatTraceparent, tracerForRequest } from "@kweli-mcp/telemetry";
 import { SinglePlaceAgent, type SinglePlaceRequest } from "./agent-do";
 
 export { SinglePlaceAgent };
@@ -30,7 +31,7 @@ async function requireM2M(request: Request, env: Env): Promise<Response | null> 
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
     if (url.pathname === "/health") {
@@ -38,19 +39,37 @@ export default {
     }
 
     if (url.pathname === "/tasks" && request.method === "POST") {
+      // Continue the caller's trace (nhimbe → gateway → MCP → here) so a
+      // place that never appears can be followed back to the click.
+      const tracer = tracerForRequest(request, {
+        serviceName: "kweli-single-place-agent",
+        env,
+        waitUntil: ctx.waitUntil.bind(ctx),
+      });
+
       const denied = await requireM2M(request, env);
-      if (denied) return denied;
+      if (denied) {
+        tracer.warn("tasks.denied", { status: denied.status });
+        return denied;
+      }
 
       const body = (await request.json().catch(() => null)) as SinglePlaceRequest | null;
-      if (!body?.name) return json({ error: "name is required" }, 400);
+      if (!body?.name) {
+        tracer.warn("tasks.rejected", { reason: "name is required" });
+        return json({ error: "name is required" }, 400);
+      }
 
       // One DO per request — there's no natural dedup key for a
       // human-named single place the way SeedTask has region+categories.
-      const agent = await getAgentByName<Env, SinglePlaceAgent>(
-        env.SINGLE_PLACE_AGENT,
-        crypto.randomUUID(),
+      const taskId = crypto.randomUUID();
+      const agent = await getAgentByName<Env, SinglePlaceAgent>(env.SINGLE_PLACE_AGENT, taskId);
+
+      const result = await tracer.span(
+        "single_place.submit",
+        (span) => agent.submit(body, formatTraceparent(span.context)),
+        { taskId, name: body.name },
       );
-      const result = await agent.submit(body);
+
       return json(result, result.status === "done" ? 201 : 422);
     }
 

@@ -21,6 +21,7 @@ import { EJSON } from "bson";
 import type { MongoClient } from "mongodb";
 import { z } from "zod";
 import { fetchM2MToken } from "@kweli-mcp/workos-m2m";
+import { buildSink, Tracer } from "@kweli-mcp/telemetry";
 import { getTaskStatus } from "@kweli-mcp/shared";
 import { BUNDU_COMMONS_ID, buildClient, COLLECTION, DB, tierSpec, verifyEntityUrl, verifyPlaceUrl } from "@kweli-mcp/mongo";
 import { encodePlusCode } from "@kweli-mcp/shared";
@@ -134,6 +135,19 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
     ],
   });
 
+  // One tracer per Durable Object instance. `this.name` is the DO instance
+  // name, so every event is already attributable to a specific MCP session
+  // without threading an id through each tool.
+  private _tracer?: Tracer;
+  private get tracer(): Tracer {
+    this._tracer ??= new Tracer({
+      serviceName: "kweli-mcp",
+      instanceId: this.name,
+      sink: buildSink({ env: this.env }),
+    });
+    return this._tracer;
+  }
+
   // Cached read client for the inspection tools. Connect only inside a handler.
   private mongo?: MongoClient;
   private async getMongo(): Promise<MongoClient> {
@@ -161,9 +175,16 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
       clientSecret: creds.clientSecret,
       organizationId: creds.organizationId,
     });
+    // traceparent rides along so the agent's work joins this MCP call's
+    // trace instead of starting an orphan. Without it the trace stops dead
+    // at the service binding — exactly the boundary you most need to see
+    // across when a seed silently produces nothing.
     return agent.fetch("https://internal/tasks", {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      headers: this.tracer.outboundHeaders({
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+      }),
       body: JSON.stringify(body),
     });
   }

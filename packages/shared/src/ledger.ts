@@ -13,8 +13,8 @@ export async function insertTask(env: LedgerEnv, task: SeedTask): Promise<void> 
     `INSERT INTO tasks (
        task_id, task_type, status, priority, dedup_key,
        source_kind, source_surface, requested_by, query,
-       region_json, categories_json, task_json, created_at
-     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       region_json, categories_json, task_json, created_at, trace_id
+     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   )
     .bind(
       task.taskId,
@@ -30,6 +30,7 @@ export async function insertTask(env: LedgerEnv, task: SeedTask): Promise<void> 
       JSON.stringify(task.categories),
       JSON.stringify(task),
       task.createdAt,
+      task.traceId ?? null,
     )
     .run();
 }

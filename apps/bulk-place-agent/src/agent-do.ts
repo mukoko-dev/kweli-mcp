@@ -7,6 +7,7 @@
 import { Agent } from "agents";
 import type { MongoClient } from "mongodb";
 import { buildDeps, runTask } from "./agent";
+import { buildSink, newSpanId, Tracer } from "@kweli-mcp/telemetry";
 import { markProcessing, markResult, markStatus } from "@kweli-mcp/shared";
 import { buildClient } from "@kweli-mcp/mongo";
 import type { SeedTask, TaskResult, TaskStatus } from "@kweli-mcp/shared";
@@ -71,15 +72,28 @@ export class FundiAgent extends Agent<Env, FundiState> {
     this.setState({ ...this.state, status: "processing" });
     await markProcessing(this.env, task.taskId);
 
+    // Resume the trace of the request that enqueued this task. Queue work
+    // runs long after the caller's response, so without the stored trace id
+    // the ingestion would look like an orphan with no visible cause.
+    const tracer = new Tracer({
+      serviceName: "kweli-bulk-place-agent",
+      instanceId: task.taskId,
+      sink: buildSink({ env: this.env }),
+      ...(task.traceId
+        ? { context: { traceId: task.traceId, spanId: newSpanId(), sampled: true } }
+        : {}),
+    });
+
     try {
       const client = await this.getMongo();
-      const deps = await buildDeps(client, this.env);
+      const deps = await buildDeps(client, this.env, tracer);
       const result = await runTask(task, deps);
       this.setState({ ...this.state, status: "done", result });
       await markResult(this.env, task.taskId, "done", result);
     } catch (e) {
       const error = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
       const attempts = this.state.attempts + 1;
+      tracer.error("task.attempt_failed", e, { attempts, willRetry: attempts < MAX_ATTEMPTS });
 
       if (attempts < MAX_ATTEMPTS) {
         this.setState({ ...this.state, status: "queued", attempts, error });

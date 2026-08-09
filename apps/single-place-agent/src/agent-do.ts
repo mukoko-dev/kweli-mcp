@@ -31,6 +31,7 @@
 
 import { Agent } from "agents";
 import { buildClient, DB } from "@kweli-mcp/mongo";
+import { buildSink, newSpanId, parseTraceparent, Tracer } from "@kweli-mcp/telemetry";
 import { encodePlusCode } from "@kweli-mcp/shared";
 import {
   classify,
@@ -96,31 +97,55 @@ function synthesizeFeature(name: string, lat: number, lng: number): OsmFeature {
 export class SinglePlaceAgent extends Agent<Env, SinglePlaceState> {
   initialState: SinglePlaceState = { request: null, status: "queued", result: null };
 
-  async submit(request: SinglePlaceRequest): Promise<SinglePlaceResult> {
+  /**
+   * @param traceparent W3C header value from the caller, so this DO's work
+   *   joins the originating request's trace. A Durable Object call is not an
+   *   HTTP hop, so there are no headers to extract from — the context has to
+   *   be passed explicitly or the trace breaks here.
+   */
+  async submit(
+    request: SinglePlaceRequest,
+    traceparent?: string,
+  ): Promise<SinglePlaceResult> {
     const taskId = this.name; // the DO's own id (crypto.randomUUID(), set by the caller)
+    const inbound = parseTraceparent(traceparent);
+    const tracer = new Tracer({
+      serviceName: "kweli-single-place-agent",
+      instanceId: taskId,
+      sink: buildSink({ env: this.env }),
+      ...(inbound
+        ? { context: { ...inbound, spanId: newSpanId() }, parentSpanId: inbound.spanId }
+        : {}),
+    });
+
     this.setState({ request, status: "queued", result: null });
 
     try {
-      const result = await this.resolveAndWrite(taskId, request);
+      const result = await this.resolveAndWrite(taskId, request, tracer);
       this.setState({ request, status: "done", result });
       return result;
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      console.error("single-place submit failed", { taskId, error: message });
+      tracer.error("submit.failed", e, { taskId });
       const result: SinglePlaceResult = { taskId, status: "failed", error: "could not create place" };
       this.setState({ request, status: "failed", result });
       return result;
     }
   }
 
-  private async resolveAndWrite(taskId: string, request: SinglePlaceRequest): Promise<SinglePlaceResult> {
+  private async resolveAndWrite(
+    taskId: string,
+    request: SinglePlaceRequest,
+    tracer: Tracer,
+  ): Promise<SinglePlaceResult> {
     let lat = request.lat;
     let lng = request.lng;
     if (lat === undefined || lng === undefined) {
       if (!request.address) {
         return { taskId, status: "failed", error: "either lat/lng or address is required" };
       }
-      const geocoded = await geocodeAddress(request.address);
+      const geocoded = await tracer.span("geocode.address", () =>
+        geocodeAddress(request.address!),
+      );
       if (!geocoded) {
         return { taskId, status: "failed", error: `could not geocode address: ${request.address}` };
       }
@@ -138,23 +163,25 @@ export class SinglePlaceAgent extends Agent<Env, SinglePlaceState> {
     // Best-effort: if OSM already has this exact place, use its real tags.
     let feature: OsmFeature | null = null;
     try {
-      const nearby = await overpassLookup(
-        { endpoint: OVERPASS_ENDPOINT },
-        {
-          s: lat - LOOKUP_RADIUS_DEGREES,
-          w: lng - LOOKUP_RADIUS_DEGREES,
-          n: lat + LOOKUP_RADIUS_DEGREES,
-          e: lng + LOOKUP_RADIUS_DEGREES,
-        },
-        "all",
-      );
-      feature = nearby.find((f) => nameMatches(request.name, f.tags.name ?? null)) ?? null;
+      feature = await tracer.span("overpass.lookup", async () => {
+        const nearby = await overpassLookup(
+          { endpoint: OVERPASS_ENDPOINT },
+          {
+            s: lat - LOOKUP_RADIUS_DEGREES,
+            w: lng - LOOKUP_RADIUS_DEGREES,
+            n: lat + LOOKUP_RADIUS_DEGREES,
+            e: lng + LOOKUP_RADIUS_DEGREES,
+          },
+          "all",
+        );
+        return nearby.find((f) => nameMatches(request.name, f.tags.name ?? null)) ?? null;
+      });
     } catch (e) {
       // Overpass being unavailable never blocks a manual single-place
       // request — fall through to the synthetic feature.
-      console.error("overpass lookup failed, continuing without it", {
+      tracer.warn("overpass.unavailable", {
         taskId,
-        error: e instanceof Error ? e.message : String(e),
+        "error.message": e instanceof Error ? e.message : String(e),
       });
     }
 
@@ -163,34 +190,34 @@ export class SinglePlaceAgent extends Agent<Env, SinglePlaceState> {
       ? classify(feature)
       : { isBusiness: true, placeType: ["LocalBusiness"] as const, schemaOrgType: "LocalBusiness" as const, name: request.name };
 
-    const hierarchy = await resolveHierarchy({ endpoint: NOMINATIM_ENDPOINT }, placesDb, lat, lng);
+    const hierarchy = await tracer.span("resolve.hierarchy", () =>
+      resolveHierarchy({ endpoint: NOMINATIM_ENDPOINT }, placesDb, lat, lng),
+    );
 
-    const outcome = await writeRecords(placesDb, entityDb, {
-      feature: resolvedFeature,
-      classification: { ...classification, placeType: [...classification.placeType] },
-      name: request.name,
-      plusCode: encodePlusCode(lat, lng, 10),
-      what3words: null,
-      wikidata: null,
-      description: null,
-      dataConfidence: feature ? 0.9 : 0.5,
-      hierarchy: {
-        containedInPlaceId: hierarchy.containedInPlaceId,
-        countryId: hierarchy.countryId,
-        provinceId: hierarchy.provinceId,
-      },
-    });
-
-    console.log(
-      JSON.stringify({
-        worker: "kweli-single-place-agent",
-        event: "submit.done",
-        taskId,
-        osmMatch: Boolean(feature),
-        osmKey: osmKey(resolvedFeature),
-        ...outcome,
+    const outcome = await tracer.span("mongo.write_records", () =>
+      writeRecords(placesDb, entityDb, {
+        feature: resolvedFeature,
+        classification: { ...classification, placeType: [...classification.placeType] },
+        name: request.name,
+        plusCode: encodePlusCode(lat, lng, 10),
+        what3words: null,
+        wikidata: null,
+        description: null,
+        dataConfidence: feature ? 0.9 : 0.5,
+        hierarchy: {
+          containedInPlaceId: hierarchy.containedInPlaceId,
+          countryId: hierarchy.countryId,
+          provinceId: hierarchy.provinceId,
+        },
       }),
     );
+
+    tracer.info("submit.done", {
+      taskId,
+      osmMatch: Boolean(feature),
+      osmKey: osmKey(resolvedFeature),
+      ...outcome,
+    });
 
     return { taskId, status: "done", placeId: outcome.placeId, entityId: outcome.entityId };
   }

@@ -34,6 +34,7 @@ export interface SubmitOutcome {
 export async function submitSeedTask(
   env: EnqueueEnv,
   input: SeedTaskInput,
+  traceId?: string,
 ): Promise<SubmitOutcome> {
   // Africa boundary guard on acceptance (admin regions are deferred to the agent
   // once their centroid resolves).
@@ -54,6 +55,7 @@ export async function submitSeedTask(
     priority: defaultPriority(input.source, input.priority),
     dedupKey,
     createdAt: new Date().toISOString(),
+    traceId,
   };
 
   await insertTask(env, task);
@@ -64,11 +66,12 @@ export async function submitSeedTask(
 export async function submitBulkIntent(
   env: EnqueueEnv,
   intent: BulkIntent,
+  traceId?: string,
 ): Promise<SubmitOutcome[]> {
   const inputs = await expandBulkIntent(env, intent);
   const outcomes: SubmitOutcome[] = [];
   for (const input of inputs) {
-    outcomes.push(await submitSeedTask(env, input));
+    outcomes.push(await submitSeedTask(env, input, traceId));
   }
   return outcomes;
 }

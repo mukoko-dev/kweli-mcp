@@ -29,5 +29,11 @@ declare global {
     WORKOS_AUTHKIT_DOMAIN: string;
     WORKOS_M2M_CLIENT_ID: string;
     WORKOS_ALLOWED_ORG_IDS?: string;
+
+    // Telemetry (optional). The D1 `DB` binding above doubles as the
+    // `agent_events` sink; OTLP export activates when an endpoint is set.
+    OTLP_ENDPOINT?: string;
+    OTLP_HEADERS?: string;
+    TELEMETRY_D1_DISABLED?: string;
   }
 }

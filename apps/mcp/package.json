@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "The Kweli MCP — every Kweli function in one WorkOS-OAuth-gated server: graph reads (search_places, get_place, get_organization, get_verification, get_open_stats), verification-tier inspection, and place generation (seed_region, seed_admin_bulk, request_place). Generation tools forward to the independent bulk-place-agent / single-place-agent Workers over WorkOS M2M, exactly as any other Nyuchi/Mukoko app would.",
+  "description": "The Kweli MCP \u2014 every Kweli function in one WorkOS-OAuth-gated server: graph reads (search_places, get_place, get_organization, get_verification, get_open_stats), verification-tier inspection, and place generation (seed_region, seed_admin_bulk, request_place). Generation tools forward to the independent bulk-place-agent / single-place-agent Workers over WorkOS M2M, exactly as any other Nyuchi/Mukoko app would.",
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
@@ -25,7 +25,8 @@
     "hono": "^4.12.26",
     "jose": "^6.2.3",
     "mongodb": "7.2.0",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@kweli-mcp/telemetry": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260801.1",

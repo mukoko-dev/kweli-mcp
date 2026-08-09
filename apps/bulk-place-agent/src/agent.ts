@@ -4,6 +4,7 @@
 // landmark resolution) slot in without rewriting the consumer.
 
 import type { Db, MongoClient } from "mongodb";
+import type { Tracer } from "@kweli-mcp/telemetry";
 import { type Bbox, boundaryBbox, guardRegion } from "@kweli-mcp/shared";
 import { DB } from "@kweli-mcp/mongo";
 import { encodePlusCode } from "@kweli-mcp/shared";
@@ -29,15 +30,14 @@ export interface AgentDeps {
   what3words: What3WordsConfig | null;
   wikidata: WikidataDeps | null;
   boundary: Bbox;
+  tracer: Tracer;
 }
 
-function log(taskId: string, event: string, data: Record<string, unknown> = {}): void {
-  console.log(
-    JSON.stringify({ at: new Date().toISOString(), worker: "fundi", taskId, event, ...data }),
-  );
-}
-
-export async function buildDeps(client: MongoClient, env: Env): Promise<AgentDeps> {
+export async function buildDeps(
+  client: MongoClient,
+  env: Env,
+  tracer: Tracer,
+): Promise<AgentDeps> {
   const strEnv = env as unknown as Record<string, string | undefined>;
   const integrationsDb = client.db(DB.integrations);
   const registry = new ProviderRegistry(integrationsDb, strEnv);
@@ -68,6 +68,7 @@ export async function buildDeps(client: MongoClient, env: Env): Promise<AgentDep
     what3words: w3wKey ? { endpoint: w3wEndpoint, apiKey: w3wKey } : null,
     wikidata: wikidataEndpoint ? { endpoint: wikidataEndpoint } : null,
     boundary: boundaryBbox(strEnv),
+    tracer,
   };
 }
 
@@ -110,7 +111,7 @@ function dataConfidence(feature: OsmFeature): number {
 }
 
 export async function runTask(task: SeedTask, deps: AgentDeps): Promise<TaskResult> {
-  log(task.taskId, "task.start", { source: task.source.kind, region: task.region.kind });
+  deps.tracer.info("task.start", { source: task.source.kind, region: task.region.kind });
 
   // Resolve the region to a bbox + containment hint.
   let bbox: Bbox;
@@ -134,7 +135,7 @@ export async function runTask(task: SeedTask, deps: AgentDeps): Promise<TaskResu
   }
 
   const tiles = tileBbox(bbox);
-  log(task.taskId, "tile.done", { tiles: tiles.length });
+  deps.tracer.info("tile.done", { tiles: tiles.length });
 
   // Dedupe on OSM id across tiles; keep the richest element (most tags).
   const seen = new Map<string, OsmFeature>();
@@ -143,7 +144,7 @@ export async function runTask(task: SeedTask, deps: AgentDeps): Promise<TaskResu
     try {
       features = await overpassLookup(deps.overpass, tile, task.categories);
     } catch (e) {
-      log(task.taskId, "overpass.error", { error: String(e) });
+      deps.tracer.warn("overpass.error", { error: String(e) });
       continue;
     }
     for (const f of features) {
@@ -152,7 +153,7 @@ export async function runTask(task: SeedTask, deps: AgentDeps): Promise<TaskResu
       if (!prev || Object.keys(f.tags).length > Object.keys(prev.tags).length) seen.set(key, f);
     }
   }
-  log(task.taskId, "overpass.done", { uniqueFeatures: seen.size });
+  deps.tracer.info("overpass.done", { uniqueFeatures: seen.size });
 
   let placesCreated = 0;
   let entitiesCreated = 0;
@@ -189,7 +190,7 @@ export async function runTask(task: SeedTask, deps: AgentDeps): Promise<TaskResu
           provinceId: resolved.provinceId,
         };
       } catch (e) {
-        log(task.taskId, "hierarchy.error", { osm: osmKey(feature), error: String(e) });
+        deps.tracer.warn("hierarchy.error", { osm: osmKey(feature), error: String(e) });
       }
     }
 
@@ -219,13 +220,13 @@ export async function runTask(task: SeedTask, deps: AgentDeps): Promise<TaskResu
         entityCreated: outcome.entityCreated,
       });
     } catch (e) {
-      log(task.taskId, "write.error", { osm: osmKey(feature), error: String(e) });
+      deps.tracer.warn("write.error", { osm: osmKey(feature), error: String(e) });
       skipped++;
     }
   }
 
   const result: TaskResult = { placesCreated, entitiesCreated, skipped, records };
-  log(task.taskId, "task.done", { ...result });
+  deps.tracer.info("task.done", { ...result });
   return result;
 }
 

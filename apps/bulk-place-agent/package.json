@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "The bulk place generator — a Cloudflare Agent (FundiAgent, a SQLite-backed Durable Object), one instance per task, driving Overpass/Wikidata lookups, classification, and enrichment for region/country-scale place seeding. Independent of the Kweli MCP: exposes its own public POST /tasks, WorkOS M2M gated and org-restricted, so any Nyuchi/Mukoko app can trigger a bulk seed directly.",
+  "description": "The bulk place generator \u2014 a Cloudflare Agent (FundiAgent, a SQLite-backed Durable Object), one instance per task, driving Overpass/Wikidata lookups, classification, and enrichment for region/country-scale place seeding. Independent of the Kweli MCP: exposes its own public POST /tasks, WorkOS M2M gated and org-restricted, so any Nyuchi/Mukoko app can trigger a bulk seed directly.",
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
@@ -21,7 +21,8 @@
     "agents": "^0.16.2",
     "bson": "7.2.0",
     "mongodb": "7.2.0",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@kweli-mcp/telemetry": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260801.1",

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "The single place generator — creates exactly one named place on request (vs. bulk-place-agent's area-based seeding): resolves coordinates (direct or geocoded), checks OSM for an existing match, and writes a tier-0 place + entity via @kweli-mcp/skills. Independent of the Kweli MCP: exposes its own public POST /tasks, WorkOS M2M gated (no org restriction), so any Nyuchi/Mukoko app can call it directly.",
+  "description": "The single place generator \u2014 creates exactly one named place on request (vs. bulk-place-agent's area-based seeding): resolves coordinates (direct or geocoded), checks OSM for an existing match, and writes a tier-0 place + entity via @kweli-mcp/skills. Independent of the Kweli MCP: exposes its own public POST /tasks, WorkOS M2M gated (no org restriction), so any Nyuchi/Mukoko app can call it directly.",
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
@@ -20,7 +20,8 @@
     "@kweli-mcp/workos-m2m": "workspace:*",
     "agents": "^0.16.2",
     "bson": "7.2.0",
-    "mongodb": "7.2.0"
+    "mongodb": "7.2.0",
+    "@kweli-mcp/telemetry": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260801.1",

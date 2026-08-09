@@ -68,6 +68,15 @@ export interface SeedTask {
   priority: number;
   dedupKey: string;
   createdAt: string;
+  /**
+   * W3C trace id of the request that enqueued this task.
+   *
+   * Queue work runs long after the caller's response, so the trace has to be
+   * carried on the task envelope itself — there is no header to propagate
+   * through a queue. Without it, ingestion appears in the logs as an orphan
+   * with no visible cause.
+   */
+  traceId?: string;
   startedAt?: string;
   finishedAt?: string;
   result?: TaskResult;

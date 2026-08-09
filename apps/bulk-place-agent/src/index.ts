@@ -23,6 +23,7 @@ import { z } from "zod";
 import { FundiAgent } from "./agent-do";
 import { submitBulkIntent, submitSeedTask } from "./enqueue";
 import { m2mConfig, verifyM2M, denyResponse } from "@kweli-mcp/workos-m2m";
+import { tracerForJob, tracerForRequest, type Tracer } from "@kweli-mcp/telemetry";
 import {
   listRequeuable,
   markStatus,
@@ -49,7 +50,7 @@ async function requireM2M(request: Request, env: Env): Promise<Response | null> 
   return null;
 }
 
-async function handleSubmit(request: Request, env: Env): Promise<Response> {
+async function handleSubmit(request: Request, env: Env, tracer: Tracer): Promise<Response> {
   let body: unknown;
   try {
     body = await request.json();
@@ -60,7 +61,7 @@ async function handleSubmit(request: Request, env: Env): Promise<Response> {
   try {
     if (body && typeof body === "object" && "intent" in body) {
       const intent = bulkIntentSchema.parse(body);
-      const outcomes = await submitBulkIntent(env, intent);
+      const outcomes = await submitBulkIntent(env, intent, tracer.context.traceId);
       return json({
         kind: "bulk",
         tasksCreated: outcomes.filter((o) => !o.deduped).length,
@@ -69,7 +70,7 @@ async function handleSubmit(request: Request, env: Env): Promise<Response> {
       });
     }
     const input = seedTaskInputSchema.parse(body);
-    const outcome = await submitSeedTask(env, input);
+    const outcome = await submitSeedTask(env, input, tracer.context.traceId);
     return json(
       { kind: "seed", ...outcome, message: "This region will exist going forward." },
       202,
@@ -81,14 +82,19 @@ async function handleSubmit(request: Request, env: Env): Promise<Response> {
     if (e instanceof BoundaryGuardError) {
       return json({ error: "region is outside the ingestion boundary" }, 422);
     }
-    console.error("submit failed", { error: e instanceof Error ? e.message : String(e) });
+    tracer.error("submit.failed", e);
     return json({ error: "could not process task" }, 500);
   }
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+    const tracer = tracerForRequest(request, {
+      serviceName: "kweli-bulk-place-agent",
+      env,
+      waitUntil: ctx.waitUntil.bind(ctx),
+    });
 
     if (url.pathname === "/health") {
       return json({ ok: true, worker: "kweli-bulk-place-agent" });
@@ -96,8 +102,11 @@ export default {
 
     if (url.pathname === "/tasks" && request.method === "POST") {
       const denied = await requireM2M(request, env);
-      if (denied) return denied;
-      return handleSubmit(request, env);
+      if (denied) {
+        tracer.warn("tasks.denied", { status: denied.status });
+        return denied;
+      }
+      return handleSubmit(request, env, tracer);
     }
 
     // Used by the Kweli MCP over a service binding to nudge a stuck task's
@@ -105,7 +114,10 @@ export default {
     // Also M2M-gated — a service binding doesn't imply trust by itself.
     if (url.pathname === "/internal/force-run" && request.method === "POST") {
       const denied = await requireM2M(request, env);
-      if (denied) return denied;
+      if (denied) {
+        tracer.warn("force_run.denied", { status: denied.status });
+        return denied;
+      }
       const body = (await request.json().catch(() => null)) as { taskId?: string } | null;
       if (!body?.taskId) return json({ error: "taskId is required" }, 400);
       try {
@@ -113,7 +125,9 @@ export default {
         const status = await agent.forceRun();
         return json({ taskId: body.taskId, status });
       } catch (e) {
-        console.error("force-run failed", { taskId: body.taskId, error: e instanceof Error ? e.message : String(e) });
+        // Detail stays server-side: this response is caller-facing and a raw
+        // exception leaks internals (CodeQL: stack-trace exposure).
+        tracer.error("force_run.failed", e, { taskId: body.taskId });
         return json({ error: "could not force-run task" }, 500);
       }
     }
@@ -130,7 +144,14 @@ export default {
         await agent.run(task);
         message.ack();
       } catch (e) {
-        console.error("queue.consume failed", { taskId: task.taskId, error: String(e) });
+        // Resume the enqueuing request's trace so a consume failure is
+        // attributable to the click that caused it, not just to the queue.
+        tracerForJob({
+          serviceName: "kweli-bulk-place-agent",
+          instanceId: task.taskId,
+          env,
+          traceId: task.traceId ?? null,
+        }).error("queue.consume_failed", e, { taskId: task.taskId });
         message.retry();
       }
     }
@@ -145,9 +166,11 @@ export default {
           await markStatus(env, task.taskId, "queued");
           await env.TASK_QUEUE.send(task);
         }
-        console.log(
-          JSON.stringify({ worker: "kweli-bulk-place-agent", event: "sweep.done", requeued: tasks.length }),
-        );
+        tracerForJob({
+          serviceName: "kweli-bulk-place-agent",
+          env,
+          waitUntil: ctx.waitUntil.bind(ctx),
+        }).info("sweep.done", { requeued: tasks.length });
       })(),
     );
   },
