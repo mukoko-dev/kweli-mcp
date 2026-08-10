@@ -70,7 +70,72 @@ the audience check until counterparts exist there.
 arrive, so it needs interactive sign-in and carries no org restriction. The
 agents are machine surfaces with no user present, so they take
 `client_credentials` only. Redirect URI registered for the MCP:
-`https://kweli-mcp.nyuchi.dev/callback` (`redir_01KZPZZJRNGATDXZDSDZXQT212`).
+`https://kweli.mukoko.com/mcp/callback` (`redir_01KZQ0CACCADT6JJD294YGCWFV`).
+
+## Serving from kweli.mukoko.com/mcp
+
+The Kweli MCP is a **consumer** surface, so it belongs on the consumer domain:
+`https://kweli.mukoko.com/mcp`. It is deliberately **not** on `nyuchi.dev` —
+that hostname carries internal tooling only. The endpoint used to be planned as
+`kweli-mcp.nyuchi.dev`; every reference to that is now wrong.
+
+**Done in code.** The worker no longer assumes it owns a hostname. Its mount
+point is an environment variable (`MCP_BASE_PATH`, default `/mcp` — see
+`apps/mcp/src/paths.ts`), every route is mounted under it, and the WorkOS
+redirect URI and approval-dialog logo are built from it. `wrangler.jsonc`
+declares the zone route `kweli.mukoko.com/mcp*` instead of a custom domain, so
+one hostname can be shared with the Kweli Next.js app.
+`apps/mcp/test/mount.test.ts` pins the behaviour that matters: the worker
+answers `/mcp/*` and **404s at the origin root**.
+
+Two details that are load-bearing rather than cosmetic:
+
+- `apiRoute` is matched by **prefix** inside `@cloudflare/workers-oauth-provider`,
+  so with the MCP endpoint at `/mcp` every sibling path shares that prefix and
+  would be swallowed by the token-gated handler (a 401, not a 404).
+  `apps/mcp/src/index.ts` dispatches `/mcp/authorize`, `/mcp/callback` and
+  `/mcp/health` to the default handler itself, before the provider can claim
+  them. The token and registration endpoints are exact-matched by the provider
+  ahead of the prefix check, so those stay with it.
+- The redirect URI **must** stay mount-relative. `https://kweli.mukoko.com/callback`
+  is a real route belonging to the Kweli web app's own AuthKit client, so an
+  origin-relative redirect would deliver this MCP's authorization code to a
+  different OAuth client and answer 200 while doing it — a silent
+  cross-wiring, not an error.
+
+**Blocked on a decision — do not add the Cloudflare route yet.**
+`kweli.mukoko.com/mcp` is already live: `nyuchi/kweli`'s `app/mcp/route.ts`
+serves an **anonymous, read-only** MCP (`search_places`, `get_place`,
+`get_organization`, `get_verification`, `get_open_stats`, plus the legacy
+`search_venues` / `get_venue` aliases), rate-limited per IP, advertised by
+`/.well-known/mcp/server-card.json` with `authentication: none` under Mukoko's
+open-data policy. Adding the zone route retires that surface, because a zone
+route wins over the Next.js app for the whole `/mcp*` prefix. The worker is a
+superset in tools but **not** in access: it gates everything behind WorkOS
+sign-in, so every existing anonymous client breaks at the moment of cutover.
+Pick one before routing:
+
+1. **Gate everything** — accept that the open-data MCP becomes
+   authenticated, update the server card, and announce the break.
+2. **Split by tool** — keep the read tools anonymous in the worker and require
+   OAuth only for ingestion/generation. This is work in `apps/mcp`: the OAuth
+   provider currently gates the whole endpoint, so the read tools would need to
+   be served ahead of it.
+3. **Keep both** — leave the anonymous reads on the Next.js route and mount the
+   authenticated worker on a different prefix (`MCP_BASE_PATH` exists for
+   exactly this). Costs the clean `/mcp` URL.
+
+Whichever is chosen, discovery needs fixing in the same change:
+`/.well-known/oauth-authorization-server` and
+`/.well-known/oauth-protected-resource` on `kweli.mukoko.com` are served by the
+Kweli app and point at the **WorkOS** issuer. For the worker, WorkOS is only
+the upstream identity provider — the worker is itself the authorization server
+for MCP clients (it issues its own tokens and offers DCR at `/mcp/register`).
+A client that follows the current metadata gets a WorkOS token, presents it to
+`/mcp`, and is rejected. The worker's own metadata lives at the origin root,
+which the `/mcp*` route never receives, so `kweli` must serve
+`/.well-known/oauth-protected-resource/mcp` pointing at the worker's
+authorization-server metadata (RFC 9728 §3.1 path-suffixed form).
 
 **Why `verification-review-agent` shares "Kweli Fundi".** Bulk seeding and
 claim review are run by the same team, so they authenticate as the same

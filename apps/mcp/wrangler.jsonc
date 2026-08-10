@@ -46,7 +46,17 @@
     { "binding": "SINGLE_PLACE_AGENT", "service": "kweli-single-place-agent" }
   ],
 
-  "routes": [{ "pattern": "kweli-mcp.nyuchi.dev", "custom_domain": true }],
+  // The Kweli MCP is a CONSUMER surface, so it serves from the consumer domain
+  // under a path prefix — NOT from nyuchi.dev, which hosts internal tools only.
+  // A zone route (not a custom domain) is what lets one hostname be shared:
+  // `kweli.mukoko.com/mcp*` comes here, everything else stays with the Kweli
+  // Next.js app. The prefix must stay in step with MCP_BASE_PATH (see
+  // src/paths.ts) — this pattern is the only place the mount is hardcoded,
+  // because Cloudflare resolves routes before the worker's env exists.
+  //
+  // Cutover prerequisites are listed in MIGRATION.md ("Serving from
+  // kweli.mukoko.com/mcp") — the Next.js app currently answers this path.
+  "routes": [{ "pattern": "kweli.mukoko.com/mcp*", "zone_name": "mukoko.com" }],
 
   "observability": { "enabled": true },
 
