@@ -26,6 +26,9 @@ declare global {
     // client_id via client_credentials; WORKOS_ALLOWED_ORG_IDS restricts
     // bulk seeding to members of the Nyuchi org (unlike single-place-agent,
     // which has no org restriction).
+    /** Preferred name (see the estate-wide standard). */
+    WORKOS_ISSUER?: string;
+    /** Legacy alias for WORKOS_ISSUER; still honoured. */
     WORKOS_AUTHKIT_DOMAIN: string;
     WORKOS_M2M_CLIENT_ID: string;
     WORKOS_ALLOWED_ORG_IDS?: string;

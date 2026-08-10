@@ -35,7 +35,13 @@
     // Nyuchi Africa), distinct from bulk-place-agent's ("Kweli Fundi"). No
     // WORKOS_ALLOWED_ORG_IDS: any caller holding this client_id/secret pair
     // may call POST /tasks, regardless of org.
-    "WORKOS_AUTHKIT_DOMAIN": "https://identity.nyuchi.com",
+    // The issuer, in SOURCE deliberately: `wrangler deploy` rebuilds bindings
+    // from this file and silently discards anything patched via the dashboard
+    // or settings API. Was `identity.nyuchi.com` until the 10 Aug 2026
+    // migration detached it — that host now returns Cloudflare 1014, so a
+    // stale value fails every M2M verification closed.
+    // `accounts` (plural) is the issuer; `account.mukoko.com` is a different host.
+    "WORKOS_AUTHKIT_DOMAIN": "https://accounts.mukoko.com",
     "WORKOS_M2M_CLIENT_ID": "client_01KZG8V8VVS6268W1ERMW7YBNE"
   },
 

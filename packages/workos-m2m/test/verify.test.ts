@@ -184,3 +184,25 @@ describe("denyResponse", () => {
     expect(await response.json()).toEqual({ error: "organization not allowed" });
   });
 });
+
+describe("issuer variable naming", () => {
+  // The Aug 2026 migration had to be applied service by service partly because
+  // the same value is spelled four different ways across the estate. New code
+  // uses WORKOS_ISSUER; the old name still works so nothing breaks mid-rollout.
+  it("prefers WORKOS_ISSUER over the legacy WORKOS_AUTHKIT_DOMAIN", () => {
+    const c = m2mConfig({
+      WORKOS_ISSUER: "https://accounts.mukoko.com",
+      WORKOS_AUTHKIT_DOMAIN: "https://identity.nyuchi.com",
+      WORKOS_M2M_CLIENT_ID: CLIENT_ID,
+    });
+    expect(c!.authkitDomain).toBe("https://accounts.mukoko.com");
+  });
+
+  it("still accepts the legacy name alone", () => {
+    const c = m2mConfig({
+      WORKOS_AUTHKIT_DOMAIN: "https://accounts.mukoko.com",
+      WORKOS_M2M_CLIENT_ID: CLIENT_ID,
+    });
+    expect(c!.authkitDomain).toBe("https://accounts.mukoko.com");
+  });
+});
