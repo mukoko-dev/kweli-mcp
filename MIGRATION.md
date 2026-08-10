@@ -35,11 +35,14 @@ agreed migration mode ("copy now, remove from kweli later"):
      `bulk-place-agent`, and **"Kweli"**
      (`client_01KZG8V8VVS6268W1ERMW7YBNE`) for `single-place-agent` (no org
      restriction enforced at the agent). Neither reuses **"Nyuchi Fundi
-     Tester"** — an existing M2M app that looked like a natural fit by name
-     but is unrelated, for something else entirely — nor the original
-     fundi-ingestion config's `WORKOS_AGENTS_M2M_CLIENT_ID` comment
-     (`client_01KV0ZZ4DK74YMEDYT22ARM1Y3`, which turned out not to exist in
-     either WorkOS environment). **Still outstanding:** a human must
+     Tester"** (`client_01KSJT4TC5GW6RHTKMHB3C9500`, shared with
+     `mzizi-mcp`) — despite the name, `fundi-tester` is a **cyber security
+     agent** and has nothing to do with places, ingestion or Kweli. See the
+     naming warning in [`CLAUDE.md`](./CLAUDE.md) rule 3. Neither reuses the
+     original fundi-ingestion config's `WORKOS_AGENTS_M2M_CLIENT_ID`
+     (`client_01KV0ZZ4DK74YMEDYT22ARM1Y3`) either — that application does not
+     exist in either WorkOS environment, verified against the WorkOS API, so
+     anything still pointing at it fails closed. **Still outstanding:** a human must
      generate each app's client secret in the WorkOS dashboard — that step
      is deliberately not exposed via the admin API/MCP surface — and set it
      as `BULK_M2M_CLIENT_SECRET` / `SINGLE_M2M_CLIENT_SECRET` on `apps/mcp`

@@ -3,6 +3,11 @@
   "name": "kweli-mcp",
   "main": "src/index.ts",
   "account_id": "125a2dfbc21f76a25c980609609e8218",
+  // Wrangler deletes every var not listed here on deploy, UNLESS keep_vars is
+  // set — so this flag is what makes dashboard-managed configuration durable.
+  // Without it, removing a value from `vars` means the next deploy wipes it.
+  "keep_vars": true,
+
   "compatibility_date": "2025-04-01",
   "compatibility_flags": ["nodejs_compat"],
 
@@ -52,28 +57,9 @@
     "snappy": "./src/native-stub.js"
   },
 
-  "vars": {
-    // Interactive OAuth (Authorization Code + PKCE) — browser/MCP-client
-    // login, org-scoped.
-    // The issuer, in SOURCE deliberately: `wrangler deploy` rebuilds bindings
-    // from this file and silently discards anything patched via the dashboard
-    // or settings API. Was `identity.nyuchi.com` until the 10 Aug 2026
-    // migration detached it — that host now returns Cloudflare 1014, so a
-    // stale value fails every M2M verification closed.
-    // `accounts` (plural) is the issuer; `account.mukoko.com` is a different host.
-    "WORKOS_AUTHKIT_DOMAIN": "https://accounts.mukoko.com",
-    "WORKOS_CLIENT_ID": "client_01KVTX0V2K1VM3PSC0DJ9VZWTV",
-    "WORKOS_ORGANIZATION_ID": "org_01KRDAB894DJF5V38PT5617TV1",
-    "WORKOS_ALLOWED_ORG_IDS": "org_01KRDAB894DJF5V38PT5617TV1",
-    "WORKOS_REQUIRED_PERMISSION": "mongodb:access",
-    // Outbound M2M client_id for calling bulk-place-agent ("Kweli Fundi" —
-    // its secret is a `wrangler secret put BULK_M2M_CLIENT_SECRET`, never a
-    // var).
-    "BULK_M2M_CLIENT_ID": "client_01KZGMK14B53N6Z84GMJFW0ASC",
-    // Outbound M2M client_id for calling single-place-agent ("Kweli" — its
-    // secret is a `wrangler secret put SINGLE_M2M_CLIENT_SECRET`).
-    "SINGLE_M2M_CLIENT_ID": "client_01KZG8V8VVS6268W1ERMW7YBNE"
-  },
+  // No vars in source: every value this worker needs is WorkOS identity
+  // config, which differs per environment and is set as an environment
+  // variable — see .dev.vars.example.
 
   "dev": { "port": 8789 }
 }
