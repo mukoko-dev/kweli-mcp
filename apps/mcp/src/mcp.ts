@@ -128,7 +128,7 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
     websiteUrl: "https://kweli.mukoko.com",
     icons: [
       {
-        src: "https://kweli-mcp.nyuchi.dev/icon.svg",
+        src: "https://kweli.mukoko.com/mcp/icon.svg",
         mimeType: "image/svg+xml",
         sizes: ["any"],
       },

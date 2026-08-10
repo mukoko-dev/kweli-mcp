@@ -16,10 +16,25 @@
 # Staging:    https://accounts-staging.mukoko.com
 WORKOS_ISSUER="https://accounts.mukoko.com"
 
-# This MCP's own interactive OAuth application.
-WORKOS_CLIENT_ID="client_..."
-WORKOS_ORGANIZATION_ID="org_..."
-WORKOS_ALLOWED_ORG_IDS="org_..."
+# This MCP's own interactive OAuth application — "Kweli MCP" (confidential,
+# Authorization Code + PKCE). Production client id below; Staging has no
+# Connect apps yet, so set the staging id here once one exists.
+#
+# Deliberately NOT org-restricted: the MCP is where people sign in, so any user
+# may authenticate. Do not paste an M2M client id here — the two agents' M2M
+# apps ("Kweli Fundi" / "Kweli") are for machine callers with no user present,
+# and reusing one for interactive login collapses that distinction.
+WORKOS_CLIENT_ID="client_01KZPZYNSHSQEP2S6B0ZE9S9J0"
+# Registered redirect URI: https://kweli.mukoko.com/mcp/callback
+# It is mount-relative, not origin-relative, and that matters: the Kweli web app
+# owns https://kweli.mukoko.com/callback for a DIFFERENT WorkOS client, so a
+# root-relative redirect here would hand our authorization code to it.
+
+# WORKOS_ORGANIZATION_ID is the org this MCP mints BULK M2M tokens *for* when
+# calling bulk-place-agent — not a restriction on who may sign in here.
+WORKOS_ORGANIZATION_ID="org_01KRDAB894DJF5V38PT5617TV1"
+# Left unset on purpose: no org allowlist on interactive sign-in.
+WORKOS_ALLOWED_ORG_IDS=""
 WORKOS_REQUIRED_PERMISSION="mongodb:access"
 
 # Outbound M2M — one dedicated application per target agent. Never share a
@@ -29,6 +44,12 @@ BULK_M2M_CLIENT_ID="client_..."
 BULK_M2M_CLIENT_SECRET="sk_..."
 SINGLE_M2M_CLIENT_ID="client_..."
 SINGLE_M2M_CLIENT_SECRET="sk_..."
+
+# Where this worker is mounted (see src/paths.ts). Optional; `/mcp` by default,
+# which is the deployed consumer endpoint: https://kweli.mukoko.com/mcp. Set it
+# only if the worker is ever served from a different prefix — and keep the
+# `routes` pattern in wrangler.jsonc in step with it.
+MCP_BASE_PATH="/mcp"
 
 COOKIE_ENCRYPTION_KEY="a-32-byte-random-string"
 MONGODB_URI="mongodb+srv://user:pass@cluster.example.mongodb.net/?retryWrites=true&w=majority"

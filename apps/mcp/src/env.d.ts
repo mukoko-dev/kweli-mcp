@@ -4,7 +4,7 @@
 // Keep this in sync with wrangler.jsonc's bindings by hand until then.
 
 import type { KweliMcp } from "./mcp";
-import type OAuthProvider from "@cloudflare/workers-oauth-provider";
+import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 
 export {};
 
@@ -14,11 +14,16 @@ declare global {
     DB: D1Database;
     OAUTH_KV: KVNamespace;
     // Injected by @cloudflare/workers-oauth-provider at fetch time — not a
-    // wrangler binding.
-    OAUTH_PROVIDER: OAuthProvider;
+    // wrangler binding. It is the HELPERS surface (parseAuthRequest,
+    // completeAuthorization, …), not the provider itself.
+    OAUTH_PROVIDER: OAuthHelpers;
 
     MONGODB_URI: string;
     COOKIE_ENCRYPTION_KEY: string;
+
+    // Mount point (see paths.ts). Defaults to `/mcp`, which is where the
+    // consumer endpoint lives: https://kweli.mukoko.com/mcp
+    MCP_BASE_PATH?: string;
 
     // Interactive OAuth (Authorization Code + PKCE) — browser/MCP-client login.
     /** Preferred name (see the estate-wide standard). */

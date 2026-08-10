@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import * as jose from "jose";
 import { iconSvg } from "./icon";
 import { landingHtml } from "./landing";
+import { mcpBasePath } from "./paths";
 import type { Props } from "./props";
 import {
   addApprovedClient,
@@ -34,11 +35,20 @@ async function buildPkce(): Promise<{ codeVerifier: string; codeChallenge: strin
   return { codeVerifier, codeChallenge };
 }
 
+/** The registered WorkOS redirect URI for whatever mount point we're serving. */
+function callbackUrl(env: Env, requestUrl: string): string {
+  return new URL(`${mcpBasePath(env)}/callback`, requestUrl).href;
+}
+
 async function startWorkOSFlow(env: Env, stateToken: string, requestUrl: string): Promise<string> {
   const { codeVerifier, codeChallenge } = await buildPkce();
   await env.OAUTH_KV.put(`oauth:pkce:${stateToken}`, codeVerifier, { expirationTtl: 600 });
 
-  const redirectUri = new URL("/callback", requestUrl).href;
+  // Mount-relative, never origin-relative: on kweli.mukoko.com the origin root
+  // is the Kweli web app, whose own `/callback` belongs to a *different* WorkOS
+  // client. Sending our authorization code there would hand it to the wrong
+  // OAuth client — silently, since that route exists and answers 200.
+  const redirectUri = callbackUrl(env, requestUrl);
   // The Connect app exposes permissions as OAuth scopes. Request the required
   // permission so WorkOS grants it (in the token's `scope` claim) only when the
   // user's org role actually holds it.
@@ -63,12 +73,17 @@ async function startWorkOSFlow(env: Env, stateToken: string, requestUrl: string)
 
 // ---
 
-const app = new Hono<{
-  Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers };
-}>();
+type HandlerEnv = { Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } };
+
+export type KweliAuthkitApp = Hono<HandlerEnv>;
+
+// Routes are declared mount-relative and mounted under the base path by
+// createKweliAuthkitHandler below, so `/authorize` here is served at
+// `https://kweli.mukoko.com/mcp/authorize`.
+const app = new Hono<HandlerEnv>();
 
 app.get("/", (c) => {
-  return c.html(landingHtml(), 200, {
+  return c.html(landingHtml(mcpBasePath(c.env)), 200, {
     "Cache-Control": "public, max-age=300",
   });
 });
@@ -114,7 +129,7 @@ app.get("/authorize", async (c) => {
     server: {
       description:
         "Authenticated MCP for agentic place ingestion. WorkOS verifies your identity before the MCP client gets access.",
-      logo: new URL("/icon.svg", c.req.url).href,
+      logo: new URL(`${mcpBasePath(c.env)}/icon.svg`, c.req.url).href,
       name: "Kweli MCP",
     },
     setCookie,
@@ -204,7 +219,9 @@ app.get("/callback", async (c) => {
     return c.text("Missing authorization code", 400);
   }
 
-  const redirectUri = new URL("/callback", c.req.url).href;
+  // Must be byte-identical to the one sent to /authorize, or WorkOS rejects
+  // the exchange — hence the shared helper rather than a second literal.
+  const redirectUri = callbackUrl(c.env, c.req.url);
   const tokenRes = await fetch(`${c.env.WORKOS_AUTHKIT_DOMAIN}/oauth2/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -298,4 +315,11 @@ app.get("/callback", async (c) => {
   return new Response(null, { status: 302, headers });
 });
 
-export const KweliAuthkitHandler = app;
+/**
+ * The worker's non-MCP surface (sign-in, callback, health, icons), mounted at
+ * `basePath`. Built per mount point rather than exported as a fixed app so the
+ * mount stays a configuration value.
+ */
+export function createKweliAuthkitHandler(basePath: string): KweliAuthkitApp {
+  return new Hono<HandlerEnv>().route(basePath, app);
+}
