@@ -1,21 +1,24 @@
 # Copy to `.dev.vars` for `wrangler dev` in this directory.
-# Never commit the real file. In production set secrets with `wrangler secret put`.
+# Never commit the real file.
+#
+# EVERY WorkOS value below is an environment variable, deliberately NOT a
+# literal in wrangler.jsonc. The 10 Aug 2026 issuer migration had to be chased
+# through source in repo after repo precisely because these were hardcoded;
+# Staging and Production are different WorkOS environments with different
+# client IDs, so one baked-in value is wrong for at least one of them.
+#
+# In deployed environments set these on the Worker (dashboard or
+# `wrangler secret put`). `keep_vars: true` in wrangler.jsonc is what stops a
+# deploy from deleting them.
 
-# MongoDB connection string (the platform cluster Fundi writes tier-0 records to).
+# The WorkOS issuer. `accounts` (plural) — `account.mukoko.com` is a different
+# host. Production: https://accounts.mukoko.com
+# Staging:    https://accounts-staging.mukoko.com
+WORKOS_ISSUER="https://accounts.mukoko.com"
+
+# This agent's own M2M application ("Kweli Fundi"). Inbound tokens are verified
+# against it; org-restricted, so only the Nyuchi org can trigger a bulk seed.
+WORKOS_M2M_CLIENT_ID="client_..."
+WORKOS_ALLOWED_ORG_IDS="org_..."
+
 MONGODB_URI="mongodb+srv://user:pass@cluster.example.mongodb.net/?retryWrites=true&w=majority"
-
-# what3words API key (write-time convenience layer). If absent, what3words is null.
-WHAT3WORDS_API_KEY="..."
-
-# Note: this agent only VERIFIES inbound WorkOS M2M tokens (against
-# WORKOS_M2M_CLIENT_ID / WORKOS_ALLOWED_ORG_IDS in wrangler.jsonc, via JWKS) —
-# it never mints one, so it needs no client secret of its own. Any caller
-# (the Kweli MCP, or another Nyuchi/Mukoko app) mints its own token using
-# THIS agent's client_id/secret pair, which lives in the caller's secrets.
-
-# Dev-only: allow the bundled African-capitals fallback when places.placesGeo
-# has no capital data. Never set "true" in production.
-# FUNDI_ALLOW_FALLBACK_CAPITALS="true"
-
-# Note: generate_description uses the Workers AI binding (Kimi via the shamwari
-# AI Gateway) — no API key needed.
