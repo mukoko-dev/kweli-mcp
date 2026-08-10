@@ -3,6 +3,11 @@
   "name": "kweli-bulk-place-agent",
   "main": "src/index.ts",
   "account_id": "125a2dfbc21f76a25c980609609e8218",
+  // Wrangler deletes every var not listed here on deploy, UNLESS keep_vars is
+  // set — so this flag is what makes dashboard-managed configuration durable.
+  // Without it, removing a value from `vars` means the next deploy wipes it.
+  "keep_vars": true,
+
   "compatibility_date": "2025-04-01",
   // mongodb driver + the Agents SDK both require the Node.js compat layer.
   "compatibility_flags": ["nodejs_compat"],
@@ -72,25 +77,12 @@
     "snappy": "./src/native-stub.js"
   },
 
+  // Build-time constants only. Every WorkOS value is set as an environment
+  // variable per Cloudflare environment — see .dev.vars.example.
   "vars": {
     "FUNDI_AI_MODEL": "workers-ai/@cf/moonshotai/kimi-k2.6",
     "FUNDI_AI_GATEWAY": "shamwari",
-    "FUNDI_BOUNDARY_BBOX": "-36,-26,38,64",
-    // WorkOS M2M — this agent's OWN dedicated application ("Kweli Fundi",
-    // org Nyuchi Africa; distinct from single-place-agent's "Kweli" app —
-    // and from "Nyuchi Fundi Tester", an unrelated app for something else
-    // entirely, never reuse it here). Callers authenticate as this
-    // client_id via client_credentials; only the Nyuchi org may trigger
-    // bulk seeding.
-    // The issuer, in SOURCE deliberately: `wrangler deploy` rebuilds bindings
-    // from this file and silently discards anything patched via the dashboard
-    // or settings API. Was `identity.nyuchi.com` until the 10 Aug 2026
-    // migration detached it — that host now returns Cloudflare 1014, so a
-    // stale value fails every M2M verification closed.
-    // `accounts` (plural) is the issuer; `account.mukoko.com` is a different host.
-    "WORKOS_AUTHKIT_DOMAIN": "https://accounts.mukoko.com",
-    "WORKOS_M2M_CLIENT_ID": "client_01KZGMK14B53N6Z84GMJFW0ASC",
-    "WORKOS_ALLOWED_ORG_IDS": "org_01KRDAB894DJF5V38PT5617TV1"
+    "FUNDI_BOUNDARY_BBOX": "-36,-26,38,64"
   },
 
   "dev": { "port": 8790 }

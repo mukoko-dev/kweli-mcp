@@ -3,6 +3,11 @@
   "name": "kweli-single-place-agent",
   "main": "src/index.ts",
   "account_id": "125a2dfbc21f76a25c980609609e8218",
+  // Wrangler deletes every var not listed here on deploy, UNLESS keep_vars is
+  // set — so this flag is what makes dashboard-managed configuration durable.
+  // Without it, removing a value from `vars` means the next deploy wipes it.
+  "keep_vars": true,
+
   "compatibility_date": "2025-04-01",
   // The mongodb driver requires the Node.js compat layer.
   "compatibility_flags": ["nodejs_compat"],
@@ -30,20 +35,9 @@
     "snappy": "./src/native-stub.js"
   },
 
-  "vars": {
-    // WorkOS M2M — this agent's OWN dedicated application ("Kweli", org
-    // Nyuchi Africa), distinct from bulk-place-agent's ("Kweli Fundi"). No
-    // WORKOS_ALLOWED_ORG_IDS: any caller holding this client_id/secret pair
-    // may call POST /tasks, regardless of org.
-    // The issuer, in SOURCE deliberately: `wrangler deploy` rebuilds bindings
-    // from this file and silently discards anything patched via the dashboard
-    // or settings API. Was `identity.nyuchi.com` until the 10 Aug 2026
-    // migration detached it — that host now returns Cloudflare 1014, so a
-    // stale value fails every M2M verification closed.
-    // `accounts` (plural) is the issuer; `account.mukoko.com` is a different host.
-    "WORKOS_AUTHKIT_DOMAIN": "https://accounts.mukoko.com",
-    "WORKOS_M2M_CLIENT_ID": "client_01KZG8V8VVS6268W1ERMW7YBNE"
-  },
+  // No vars in source: every value this worker needs is WorkOS identity
+  // config, which differs per environment and is set as an environment
+  // variable — see .dev.vars.example.
 
   "dev": { "port": 8792 }
 }
