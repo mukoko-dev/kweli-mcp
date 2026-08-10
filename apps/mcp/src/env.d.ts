@@ -21,6 +21,9 @@ declare global {
     COOKIE_ENCRYPTION_KEY: string;
 
     // Interactive OAuth (Authorization Code + PKCE) — browser/MCP-client login.
+    /** Preferred name (see the estate-wide standard). */
+    WORKOS_ISSUER?: string;
+    /** Legacy alias for WORKOS_ISSUER; still honoured. */
     WORKOS_AUTHKIT_DOMAIN: string;
     WORKOS_CLIENT_ID: string;
     WORKOS_ORGANIZATION_ID?: string;

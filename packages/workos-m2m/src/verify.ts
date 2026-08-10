@@ -30,11 +30,16 @@ function stripTrailingSlashes(s: string): string {
 }
 
 export function m2mConfig(env: {
+  WORKOS_ISSUER?: string;
   WORKOS_AUTHKIT_DOMAIN?: string;
   WORKOS_M2M_CLIENT_ID?: string;
   WORKOS_ALLOWED_ORG_IDS?: string;
 }): M2MConfig | null {
-  const trimmed = env.WORKOS_AUTHKIT_DOMAIN?.trim();
+  // `WORKOS_ISSUER` is the standard name going forward — the same concept is
+  // spelled WORKOS_AUTHKIT_DOMAIN / WORKOS_ISSUER / WORKOS_AUTHORIZATION_SERVER
+  // / AUTHKIT_DOMAIN across the estate, and that inconsistency is what made the
+  // Aug 2026 issuer migration a per-service hunt. Accept both, prefer the new.
+  const trimmed = (env.WORKOS_ISSUER || env.WORKOS_AUTHKIT_DOMAIN)?.trim();
   const authkitDomain = trimmed ? stripTrailingSlashes(trimmed) : undefined;
   const audience = (env.WORKOS_M2M_CLIENT_ID ?? "")
     .split(",")
