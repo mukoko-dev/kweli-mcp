@@ -20,7 +20,11 @@ const DEFAULT_MCP_BASE_PATH = "/mcp";
 export function mcpBasePath(env: Pick<Env, "MCP_BASE_PATH">): string {
   const raw = (env.MCP_BASE_PATH || "").trim() || DEFAULT_MCP_BASE_PATH;
   const withLeadingSlash = raw.startsWith("/") ? raw : `/${raw}`;
-  const trimmed = withLeadingSlash.replace(/\/+$/, "");
+  // Trimmed by slicing rather than /\/+$/ — the value comes from configuration,
+  // and a backtracking-prone pattern over external input is a finding whether
+  // or not this particular source is trusted.
+  let trimmed = withLeadingSlash;
+  while (trimmed.endsWith("/")) trimmed = trimmed.slice(0, -1);
   // A root mount would make the MCP endpoint indistinguishable from every
   // other route, so fall back rather than accept it.
   return trimmed || DEFAULT_MCP_BASE_PATH;
