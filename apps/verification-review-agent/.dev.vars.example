@@ -1,0 +1,35 @@
+# verification-review-agent — STILL A STUB.
+#
+# Nothing here reads these yet; the agent has no POST /tasks and no M2M gate.
+# The file exists so the credential decision is not re-litigated when someone
+# implements it.
+#
+# ── Which WorkOS app ──────────────────────────────────────────────────
+# This agent authenticates as "Kweli Fundi" — the SAME M2M application as
+# bulk-place-agent, deliberately. Bulk seeding and claim review are operated by
+# the same team, so they act as the same principal.
+#
+# That is an exception to the one-app-per-agent rule in CLAUDE.md rule 3, and a
+# narrow one. The rule exists to stop *unrelated* surfaces sharing a credential
+# — see the fundi-tester trap — and it still holds in both other directions:
+# never reuse this pair for single-place-agent ("Kweli"), and never reuse any
+# M2M pair for apps/mcp's interactive OAuth login ("Kweli MCP"). If review is
+# ever run by a different team, it needs its own application at that point.
+WORKOS_ISSUER="https://accounts.mukoko.com"
+WORKOS_M2M_CLIENT_ID="client_01KZGMK14B53N6Z84GMJFW0ASC"
+# Org-restricted, matching bulk-place-agent: only the Nyuchi org may call it.
+WORKOS_ALLOWED_ORG_IDS="org_01KRDAB894DJF5V38PT5617TV1"
+
+# The shared Mukoko cluster. Reads entity.representativeClaims; writes drafts
+# and flags only.
+#
+# It must NEVER write bundu.verificationTier — not even tier 0. Kweli's own
+# admin console is the sole writer of tiers, and unlike the generation agents
+# (which may create tier-0 records) this agent approves nothing at all.
+MONGODB_URI="mongodb+srv://..."
+
+# Telemetry (all optional). No D1 binding of its own — the agent_events ledger
+# belongs to bulk-place-agent — so it emits structured JSON to Workers Logs,
+# plus OTLP when an endpoint is set.
+OTLP_ENDPOINT=""
+OTLP_HEADERS=""

@@ -29,24 +29,12 @@ agreed migration mode ("copy now, remove from kweli later"):
      deployed here and verified against a real task end-to-end (submit →
      queue → DO → Mongo write → D1 status), including a real WorkOS M2M
      round-trip (mint → verify) for each agent.
-  2. ~~Two more WorkOS M2M applications are registered for real~~ **Done.**
-     Two brand-new dedicated M2M applications now exist, both org Nyuchi
-     Africa: **"Kweli Fundi"** (`client_01KZGMK14B53N6Z84GMJFW0ASC`) for
-     `bulk-place-agent`, and **"Kweli"**
-     (`client_01KZG8V8VVS6268W1ERMW7YBNE`) for `single-place-agent` (no org
-     restriction enforced at the agent). Neither reuses **"Nyuchi Fundi
-     Tester"** (`client_01KSJT4TC5GW6RHTKMHB3C9500`, shared with
-     `mzizi-mcp`) — despite the name, `fundi-tester` is a **cyber security
-     agent** and has nothing to do with places, ingestion or Kweli. See the
-     naming warning in [`CLAUDE.md`](./CLAUDE.md) rule 3. Neither reuses the
-     original fundi-ingestion config's `WORKOS_AGENTS_M2M_CLIENT_ID`
-     (`client_01KV0ZZ4DK74YMEDYT22ARM1Y3`) either — that application does not
-     exist in either WorkOS environment, verified against the WorkOS API, so
-     anything still pointing at it fails closed. **Still outstanding:** a human must
-     generate each app's client secret in the WorkOS dashboard — that step
-     is deliberately not exposed via the admin API/MCP surface — and set it
-     as `BULK_M2M_CLIENT_SECRET` / `SINGLE_M2M_CLIENT_SECRET` on `apps/mcp`
-     (and on any other app that calls these agents directly).
+  2. ~~Two more WorkOS M2M applications are registered for real~~ **Done —
+     see the app map below.** **Still outstanding:** a human must generate
+     each M2M app's client secret in the WorkOS dashboard — that step is
+     deliberately not exposed via the admin API/MCP surface — and set it as
+     `BULK_M2M_CLIENT_SECRET` / `SINGLE_M2M_CLIENT_SECRET` on `apps/mcp` (and
+     on any other app that calls these agents directly).
   3. The D1 database (`fundi-ingestion-ledger`, id
      `1ca0ed44-20fc-4cd5-a6c1-86b40daf1041`) and KV namespace
      (`fundi-ingestion-tasks` dedup, id `7e726479ef2048c5b12e51bf1cc25141`)
@@ -63,3 +51,43 @@ agreed migration mode ("copy now, remove from kweli later"):
 
 Until step 5, treat `nyuchi/kweli`'s copy as the live source of truth and
 this repo's copy as staged, not yet serving production traffic.
+
+## The WorkOS application map
+
+Every app in this repo maps to exactly one WorkOS Connect application. All of
+these are in the **Production** environment (`environment_01KQBBSMDHMT9Y5GVD8S1A3C0W`);
+Staging currently has **zero** Connect apps, so a staging deploy fails closed on
+the audience check until counterparts exist there.
+
+| This repo | WorkOS app | client_id | Type | Org scope |
+| --- | --- | --- | --- | --- |
+| `apps/mcp` | **Kweli MCP** | `client_01KZPZYNSHSQEP2S6B0ZE9S9J0` | OAuth (confidential, Auth Code + PKCE) | none — any user may sign in |
+| `bulk-place-agent` | **Kweli Fundi** | `client_01KZGMK14B53N6Z84GMJFW0ASC` | M2M | Nyuchi Africa (`org_01KRDAB894DJF5V38PT5617TV1`) |
+| `verification-review-agent` | **Kweli Fundi** — *same app as bulk* | `client_01KZGMK14B53N6Z84GMJFW0ASC` | M2M | Nyuchi Africa |
+| `single-place-agent` | **Kweli** | `client_01KZG8V8VVS6268W1ERMW7YBNE` | M2M | none enforced at the agent |
+
+**Why the MCP is OAuth and the agents are M2M.** The MCP is where *people*
+arrive, so it needs interactive sign-in and carries no org restriction. The
+agents are machine surfaces with no user present, so they take
+`client_credentials` only. Redirect URI registered for the MCP:
+`https://kweli-mcp.nyuchi.dev/callback` (`redir_01KZPZZJRNGATDXZDSDZXQT212`).
+
+**Why `verification-review-agent` shares "Kweli Fundi".** Bulk seeding and
+claim review are run by the same team, so they authenticate as the same
+principal. This is a deliberate exception to the one-app-per-agent rule, not
+an oversight — the rule exists to stop *unrelated* surfaces sharing a
+credential (see the fundi-tester trap), and it still forbids reusing either
+M2M app for the MCP's interactive login. If review is ever operated by a
+different team, it needs its own app at that point.
+
+**Two client ids that must never be used here.** Both are live traps:
+
+| Do not use | Why |
+| --- | --- |
+| `client_01KSJT4TC5GW6RHTKMHB3C9500` ("Nyuchi Fundi Tester") | `fundi-tester` is a **cyber security agent**, shared with `mzizi-mcp`. Nothing to do with places or Kweli. It was once wired into `bulk-place-agent` purely on the name matching |
+| `client_01KV0ZZ4DK74YMEDYT22ARM1Y3` | The old `fundi-ingestion` `WORKOS_AGENTS_M2M_CLIENT_ID`. Exists in **neither** WorkOS environment — verified against the API — so anything pointing at it can never authenticate |
+
+The live `fundi-ingestion` worker in `nyuchi/kweli` still carries that second
+value, which means its `POST /tasks` M2M gate currently accepts no token at
+all; only the static `FUNDI_API_TOKEN` path works. Repointing it at
+`client_01KZGMK14B53N6Z84GMJFW0ASC` is part of step 4 above.
