@@ -24,6 +24,12 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Required for repos whose ruleset uses a MERGE QUEUE: required checks
+  # must report on the gh-readonly-queue/** ref, and only merge_group
+  # produces that. Without it a queued PR stalls for the full
+  # check_response_timeout and nothing can ever land. Harmless where
+  # there is no queue, so it stays in the one identical caller.
+  merge_group:
   workflow_dispatch:
 
 concurrency:
