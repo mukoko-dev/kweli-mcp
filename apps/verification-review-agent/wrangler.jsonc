@@ -7,18 +7,23 @@
   "compatibility_flags": ["nodejs_compat"],
 
   "durable_objects": {
-    "bindings": [{ "class_name": "VerificationReviewAgent", "name": "VERIFICATION_REVIEW_AGENT" }]
+    "bindings": [
+      {
+        "class_name": "VerificationReviewAgent",
+        "name": "VERIFICATION_REVIEW_AGENT",
+      },
+    ],
   },
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["VerificationReviewAgent"]
-    }
+      "new_sqlite_classes": ["VerificationReviewAgent"],
+    },
   ],
 
   "routes": [{ "pattern": "kweli-review.nyuchi.dev", "custom_domain": true }],
 
   "observability": { "enabled": true },
 
-  "dev": { "port": 8793 }
+  "dev": { "port": 8793 },
 }

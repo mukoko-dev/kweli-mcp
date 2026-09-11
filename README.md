@@ -41,11 +41,11 @@ never appeared can be traced back to the request that asked for it.
 
 Events land in three places, and which are active depends purely on config:
 
-| Sink | When | Query it with |
-|---|---|---|
-| JSON to stdout | always | Cloudflare Workers Logs |
-| D1 `agent_events` | when a `DB` binding exists | `wrangler d1 execute` |
-| OTLP/HTTP | when `OTLP_ENDPOINT` is set | your OTLP backend |
+| Sink              | When                        | Query it with           |
+| ----------------- | --------------------------- | ----------------------- |
+| JSON to stdout    | always                      | Cloudflare Workers Logs |
+| D1 `agent_events` | when a `DB` binding exists  | `wrangler d1 execute`   |
+| OTLP/HTTP         | when `OTLP_ENDPOINT` is set | your OTLP backend       |
 
 ```sql
 -- What has one agent been doing?

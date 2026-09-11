@@ -14,13 +14,13 @@
   // KweliMcp (the MCP session surface) is a Cloudflare Agent — a
   // SQLite-backed Durable Object.
   "durable_objects": {
-    "bindings": [{ "class_name": "KweliMcp", "name": "MCP_OBJECT" }]
+    "bindings": [{ "class_name": "KweliMcp", "name": "MCP_OBJECT" }],
   },
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["KweliMcp"]
-    }
+      "new_sqlite_classes": ["KweliMcp"],
+    },
   ],
 
   // Read-only from this worker's side: bulk-place-agent writes it,
@@ -29,12 +29,14 @@
     {
       "binding": "DB",
       "database_name": "fundi-ingestion-ledger",
-      "database_id": "1ca0ed44-20fc-4cd5-a6c1-86b40daf1041"
-    }
+      "database_id": "1ca0ed44-20fc-4cd5-a6c1-86b40daf1041",
+    },
   ],
 
   // OAuth codes/tokens/state for @cloudflare/workers-oauth-provider.
-  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "7b3cb31f73744a73a6f4aef9a0aff61c" }],
+  "kv_namespaces": [
+    { "binding": "OAUTH_KV", "id": "7b3cb31f73744a73a6f4aef9a0aff61c" },
+  ],
 
   // The two literal cross-worker bindings: seed_region/seed_admin_bulk call
   // bulk-place-agent, request_place calls single-place-agent. Both fetches
@@ -43,7 +45,7 @@
   // SINGLE_M2M_* below), exactly like any other caller.
   "services": [
     { "binding": "BULK_PLACE_AGENT", "service": "kweli-bulk-place-agent" },
-    { "binding": "SINGLE_PLACE_AGENT", "service": "kweli-single-place-agent" }
+    { "binding": "SINGLE_PLACE_AGENT", "service": "kweli-single-place-agent" },
   ],
 
   // The Kweli MCP is a CONSUMER surface, so it serves from the consumer domain
@@ -64,12 +66,12 @@
     "@mongodb-js/zstd": "./src/native-stub.js",
     "kerberos": "./src/native-stub.js",
     "mongodb-client-encryption": "./src/native-stub.js",
-    "snappy": "./src/native-stub.js"
+    "snappy": "./src/native-stub.js",
   },
 
   // No vars in source: every value this worker needs is WorkOS identity
   // config, which differs per environment and is set as an environment
   // variable — see .dev.vars.example.
 
-  "dev": { "port": 8789 }
+  "dev": { "port": 8789 },
 }

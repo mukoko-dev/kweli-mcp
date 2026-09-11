@@ -17,29 +17,31 @@
   // it directly — other callers (the Kweli MCP, or any Nyuchi/Mukoko app)
   // reach this worker only via its public POST /tasks (WorkOS M2M gated).
   "durable_objects": {
-    "bindings": [{ "class_name": "FundiAgent", "name": "FUNDI_AGENT" }]
+    "bindings": [{ "class_name": "FundiAgent", "name": "FUNDI_AGENT" }],
   },
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["FundiAgent"]
-    }
+      "new_sqlite_classes": ["FundiAgent"],
+    },
   ],
 
   // This worker is BOTH producer (POST /tasks, the cron sweeper) and
   // consumer of its own queue — unlike the earlier two-worker split, no
   // other worker needs producer access now that /tasks lives here.
   "queues": {
-    "producers": [{ "queue": "fundi-ingestion-tasks", "binding": "TASK_QUEUE" }],
+    "producers": [
+      { "queue": "fundi-ingestion-tasks", "binding": "TASK_QUEUE" },
+    ],
     "consumers": [
       {
         "queue": "fundi-ingestion-tasks",
         "max_batch_size": 10,
         "max_batch_timeout": 5,
         "max_retries": 3,
-        "dead_letter_queue": "fundi-ingestion-tasks-dlq"
-      }
-    ]
+        "dead_letter_queue": "fundi-ingestion-tasks-dlq",
+      },
+    ],
   },
 
   // D1 task ledger — shared with apps/mcp (the Kweli MCP reads it for its
@@ -51,12 +53,14 @@
       "binding": "DB",
       "database_name": "fundi-ingestion-ledger",
       "database_id": "1ca0ed44-20fc-4cd5-a6c1-86b40daf1041",
-      "migrations_dir": "migrations"
-    }
+      "migrations_dir": "migrations",
+    },
   ],
 
   // OSM-id dedupe / rate-limit cache.
-  "kv_namespaces": [{ "binding": "DEDUP_KV", "id": "7e726479ef2048c5b12e51bf1cc25141" }],
+  "kv_namespaces": [
+    { "binding": "DEDUP_KV", "id": "7e726479ef2048c5b12e51bf1cc25141" },
+  ],
 
   // Workers AI: generate_description routes through the shamwari AI Gateway.
   "ai": { "binding": "AI" },
@@ -74,7 +78,7 @@
     "@mongodb-js/zstd": "./src/native-stub.js",
     "kerberos": "./src/native-stub.js",
     "mongodb-client-encryption": "./src/native-stub.js",
-    "snappy": "./src/native-stub.js"
+    "snappy": "./src/native-stub.js",
   },
 
   // Build-time constants only. Every WorkOS value is set as an environment
@@ -82,8 +86,8 @@
   "vars": {
     "FUNDI_AI_MODEL": "workers-ai/@cf/moonshotai/kimi-k2.6",
     "FUNDI_AI_GATEWAY": "shamwari",
-    "FUNDI_BOUNDARY_BBOX": "-36,-26,38,64"
+    "FUNDI_BOUNDARY_BBOX": "-36,-26,38,64",
   },
 
-  "dev": { "port": 8790 }
+  "dev": { "port": 8790 },
 }
