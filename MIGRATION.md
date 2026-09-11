@@ -39,7 +39,7 @@ agreed migration mode ("copy now, remove from kweli later"):
      `1ca0ed44-20fc-4cd5-a6c1-86b40daf1041`) and KV namespace
      (`fundi-ingestion-tasks` dedup, id `7e726479ef2048c5b12e51bf1cc25141`)
      are re-pointed or migrated — this repo's wrangler configs reuse the
-     *same* resource ids on the assumption the old worker is retired, not
+     _same_ resource ids on the assumption the old worker is retired, not
      running in parallel against the same D1/queue.
   4. `kweli`'s `lib/services/fundi.service.ts` and nhimbe's
      `reportSearchMiss()` are repointed at `bulk-place-agent`'s new
@@ -59,14 +59,14 @@ these are in the **Production** environment (`environment_01KQBBSMDHMT9Y5GVD8S1A
 Staging currently has **zero** Connect apps, so a staging deploy fails closed on
 the audience check until counterparts exist there.
 
-| This repo | WorkOS app | client_id | Type | Org scope |
-| --- | --- | --- | --- | --- |
-| `apps/mcp` | **Kweli MCP** | `client_01KZPZYNSHSQEP2S6B0ZE9S9J0` | OAuth (confidential, Auth Code + PKCE) | none — any user may sign in |
-| `bulk-place-agent` | **Kweli Fundi** | `client_01KZGMK14B53N6Z84GMJFW0ASC` | M2M | Nyuchi Africa (`org_01KRDAB894DJF5V38PT5617TV1`) |
-| `verification-review-agent` | **Kweli Fundi** — *same app as bulk* | `client_01KZGMK14B53N6Z84GMJFW0ASC` | M2M | Nyuchi Africa |
-| `single-place-agent` | **Kweli** | `client_01KZG8V8VVS6268W1ERMW7YBNE` | M2M | none enforced at the agent |
+| This repo                   | WorkOS app                           | client_id                           | Type                                   | Org scope                                        |
+| --------------------------- | ------------------------------------ | ----------------------------------- | -------------------------------------- | ------------------------------------------------ |
+| `apps/mcp`                  | **Kweli MCP**                        | `client_01KZPZYNSHSQEP2S6B0ZE9S9J0` | OAuth (confidential, Auth Code + PKCE) | none — any user may sign in                      |
+| `bulk-place-agent`          | **Kweli Fundi**                      | `client_01KZGMK14B53N6Z84GMJFW0ASC` | M2M                                    | Nyuchi Africa (`org_01KRDAB894DJF5V38PT5617TV1`) |
+| `verification-review-agent` | **Kweli Fundi** — _same app as bulk_ | `client_01KZGMK14B53N6Z84GMJFW0ASC` | M2M                                    | Nyuchi Africa                                    |
+| `single-place-agent`        | **Kweli**                            | `client_01KZG8V8VVS6268W1ERMW7YBNE` | M2M                                    | none enforced at the agent                       |
 
-**Why the MCP is OAuth and the agents are M2M.** The MCP is where *people*
+**Why the MCP is OAuth and the agents are M2M.** The MCP is where _people_
 arrive, so it needs interactive sign-in and carries no org restriction. The
 agents are machine surfaces with no user present, so they take
 `client_credentials` only. Redirect URI registered for the MCP:
@@ -140,17 +140,17 @@ authorization-server metadata (RFC 9728 §3.1 path-suffixed form).
 **Why `verification-review-agent` shares "Kweli Fundi".** Bulk seeding and
 claim review are run by the same team, so they authenticate as the same
 principal. This is a deliberate exception to the one-app-per-agent rule, not
-an oversight — the rule exists to stop *unrelated* surfaces sharing a
+an oversight — the rule exists to stop _unrelated_ surfaces sharing a
 credential (see the fundi-tester trap), and it still forbids reusing either
 M2M app for the MCP's interactive login. If review is ever operated by a
 different team, it needs its own app at that point.
 
 **Two client ids that must never be used here.** Both are live traps:
 
-| Do not use | Why |
-| --- | --- |
+| Do not use                                                  | Why                                                                                                                                                                              |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `client_01KSJT4TC5GW6RHTKMHB3C9500` ("Nyuchi Fundi Tester") | `fundi-tester` is a **cyber security agent**, shared with `mzizi-mcp`. Nothing to do with places or Kweli. It was once wired into `bulk-place-agent` purely on the name matching |
-| `client_01KV0ZZ4DK74YMEDYT22ARM1Y3` | The old `fundi-ingestion` `WORKOS_AGENTS_M2M_CLIENT_ID`. Exists in **neither** WorkOS environment — verified against the API — so anything pointing at it can never authenticate |
+| `client_01KV0ZZ4DK74YMEDYT22ARM1Y3`                         | The old `fundi-ingestion` `WORKOS_AGENTS_M2M_CLIENT_ID`. Exists in **neither** WorkOS environment — verified against the API — so anything pointing at it can never authenticate |
 
 The live `fundi-ingestion` worker in `nyuchi/kweli` still carries that second
 value, which means its `POST /tasks` M2M gate currently accepts no token at
