@@ -13,13 +13,15 @@
   "compatibility_flags": ["nodejs_compat"],
 
   "durable_objects": {
-    "bindings": [{ "class_name": "SinglePlaceAgent", "name": "SINGLE_PLACE_AGENT" }]
+    "bindings": [
+      { "class_name": "SinglePlaceAgent", "name": "SINGLE_PLACE_AGENT" },
+    ],
   },
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["SinglePlaceAgent"]
-    }
+      "new_sqlite_classes": ["SinglePlaceAgent"],
+    },
   ],
 
   "routes": [{ "pattern": "fundi-place.nyuchi.dev", "custom_domain": true }],
@@ -32,12 +34,12 @@
     "@mongodb-js/zstd": "./src/native-stub.js",
     "kerberos": "./src/native-stub.js",
     "mongodb-client-encryption": "./src/native-stub.js",
-    "snappy": "./src/native-stub.js"
+    "snappy": "./src/native-stub.js",
   },
 
   // No vars in source: every value this worker needs is WorkOS identity
   // config, which differs per environment and is set as an environment
   // variable — see .dev.vars.example.
 
-  "dev": { "port": 8792 }
+  "dev": { "port": 8792 },
 }
