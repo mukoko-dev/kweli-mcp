@@ -1,6 +1,9 @@
 import path from "node:path";
 
-import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
+import {
+  cloudflareTest,
+  readD1Migrations,
+} from "@cloudflare/vitest-pool-workers";
 import { defineConfig } from "vitest/config";
 
 // Runs against REAL workerd with a REAL D1 (SQLite), not a mock. That's the
@@ -27,7 +30,9 @@ export default defineConfig({
         d1Databases: ["DB"],
         // Read by the setup file to bring each isolated database up to date.
         bindings: {
-          TEST_MIGRATIONS: await readD1Migrations(path.join(__dirname, "migrations")),
+          TEST_MIGRATIONS: await readD1Migrations(
+            path.join(__dirname, "migrations"),
+          ),
         },
       },
     })),

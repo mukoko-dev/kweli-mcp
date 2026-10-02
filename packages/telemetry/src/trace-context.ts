@@ -41,7 +41,9 @@ export function newSpanId(): string {
 }
 
 /** Parse a `traceparent` value. Returns null for anything malformed. */
-export function parseTraceparent(value: string | null | undefined): TraceContext | null {
+export function parseTraceparent(
+  value: string | null | undefined,
+): TraceContext | null {
   if (!value) return null;
 
   const match = TRACEPARENT_RE.exec(value.trim().toLowerCase());
@@ -80,7 +82,11 @@ export function contextFromHeaders(headers: Headers): {
 
   if (parent) {
     return {
-      context: { traceId: parent.traceId, spanId: newSpanId(), sampled: parent.sampled },
+      context: {
+        traceId: parent.traceId,
+        spanId: newSpanId(),
+        sampled: parent.sampled,
+      },
       parentSpanId: parent.spanId,
     };
   }

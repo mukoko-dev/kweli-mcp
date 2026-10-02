@@ -15,19 +15,26 @@ const CATEGORY_FILTERS: Record<string, CategoryFilter[]> = {
   accommodation: [
     {
       key: "tourism",
-      regex: "hotel|guest_house|hostel|motel|chalet|apartment|camp_site|caravan_site",
+      regex:
+        "hotel|guest_house|hostel|motel|chalet|apartment|camp_site|caravan_site",
     },
   ],
-  food: [{ key: "amenity", regex: "restaurant|cafe|fast_food|pub|bar|biergarten" }],
+  food: [
+    { key: "amenity", regex: "restaurant|cafe|fast_food|pub|bar|biergarten" },
+  ],
   shop: [{ key: "shop", regex: ".+" }],
   attraction: [
     {
       key: "tourism",
-      regex: "attraction|viewpoint|museum|artwork|gallery|zoo|theme_park|aquarium",
+      regex:
+        "attraction|viewpoint|museum|artwork|gallery|zoo|theme_park|aquarium",
     },
   ],
   natural: [
-    { key: "natural", regex: "peak|volcano|beach|water|waterfall|spring|ridge" },
+    {
+      key: "natural",
+      regex: "peak|volcano|beach|water|waterfall|spring|ridge",
+    },
     { key: "waterway", regex: "waterfall|river" },
   ],
   park: [
@@ -56,15 +63,21 @@ function resolveFilters(categories: string[] | "all"): CategoryFilter[] {
   }
   // Unknown categories collapse to nothing; default to the full taxonomy so a
   // task never silently no-ops on a typo.
-  return filters.length ? filters : ALL_CATEGORIES.flatMap((k) => CATEGORY_FILTERS[k]);
+  return filters.length
+    ? filters
+    : ALL_CATEGORIES.flatMap((k) => CATEGORY_FILTERS[k]);
 }
 
-export function buildOverpassQuery(bbox: Bbox, categories: string[] | "all"): string {
+export function buildOverpassQuery(
+  bbox: Bbox,
+  categories: string[] | "all",
+): string {
   const { s, w, n, e } = bbox;
   const box = `${s},${w},${n},${e}`;
   const lines: string[] = [];
   for (const f of resolveFilters(categories)) {
-    const sel = f.regex === ".+" ? `["${f.key}"]` : `["${f.key}"~"^(${f.regex})$"]`;
+    const sel =
+      f.regex === ".+" ? `["${f.key}"]` : `["${f.key}"~"^(${f.regex})$"]`;
     lines.push(`  node${sel}(${box});`);
     lines.push(`  way${sel}(${box});`);
   }
@@ -94,7 +107,10 @@ export async function overpassLookup(
   const doFetch = deps.fetchImpl ?? fetch;
   const res = await doFetch(deps.endpoint, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded", "user-agent": USER_AGENT },
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      "user-agent": USER_AGENT,
+    },
     body: `data=${encodeURIComponent(query)}`,
   });
   if (!res.ok) {

@@ -72,7 +72,10 @@ export interface TracerFactoryOptions extends BuildSinkOptions {
 }
 
 /** Tracer continuing the caller's trace, for an inbound HTTP request. */
-export function tracerForRequest(request: Request, options: TracerFactoryOptions): Tracer {
+export function tracerForRequest(
+  request: Request,
+  options: TracerFactoryOptions,
+): Tracer {
   return Tracer.fromRequest(request, {
     serviceName: options.serviceName,
     instanceId: options.instanceId,
@@ -98,7 +101,13 @@ export function tracerForJob(
     attributes: options.attributes,
     sink: buildSink(options),
     ...(options.traceId
-      ? { context: { traceId: options.traceId, spanId: newSpanId(), sampled: true } }
+      ? {
+          context: {
+            traceId: options.traceId,
+            spanId: newSpanId(),
+            sampled: true,
+          },
+        }
       : {}),
   });
 }

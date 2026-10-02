@@ -93,7 +93,11 @@ export interface AiConfig {
   gateway?: string;
 }
 
-async function runModel(cfg: AiConfig, system: string, user: string): Promise<string> {
+async function runModel(
+  cfg: AiConfig,
+  system: string,
+  user: string,
+): Promise<string> {
   // Through an AI Gateway the model id is provider-prefixed
   // ("workers-ai/@cf/…"), which is not a static AiModels key — hence the casts.
   const options = cfg.gateway ? { gateway: { id: cfg.gateway } } : undefined;
@@ -128,7 +132,10 @@ export async function generateDescription(
     const second = await runModel(cfg, BASE_PROMPT + STRICT_SUFFIX, context);
     if (!isHedge(second)) return second.trim();
   } catch (e) {
-    console.error("generate_description failed", { id: feature.id, error: String(e) });
+    console.error("generate_description failed", {
+      id: feature.id,
+      error: String(e),
+    });
   }
   // Clean null beats a polluted string. Place stays re-enrichable later.
   return null;

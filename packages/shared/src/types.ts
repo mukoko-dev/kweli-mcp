@@ -14,7 +14,9 @@ export const regionSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     kind: z.literal("bbox"),
-    bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]).describe("[s, w, n, e]"),
+    bbox: z
+      .tuple([z.number(), z.number(), z.number(), z.number()])
+      .describe("[s, w, n, e]"),
   }),
   z.object({
     kind: z.literal("admin"),
@@ -37,7 +39,12 @@ export const sourceSchema = z.object({
 
 export type TaskSource = z.infer<typeof sourceSchema>;
 
-export type TaskStatus = "queued" | "processing" | "done" | "failed" | "partial";
+export type TaskStatus =
+  | "queued"
+  | "processing"
+  | "done"
+  | "failed"
+  | "partial";
 
 // One record Fundi wrote for a task. The ids are logged so "what this task
 // built" is deterministic — not a fragile global "most recent" query.

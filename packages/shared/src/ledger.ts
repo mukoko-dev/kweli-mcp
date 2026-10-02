@@ -8,7 +8,10 @@ export interface LedgerEnv {
   DB: D1Database;
 }
 
-export async function insertTask(env: LedgerEnv, task: SeedTask): Promise<void> {
+export async function insertTask(
+  env: LedgerEnv,
+  task: SeedTask,
+): Promise<void> {
   await env.DB.prepare(
     `INSERT INTO tasks (
        task_id, task_type, status, priority, dedup_key,
@@ -35,7 +38,10 @@ export async function insertTask(env: LedgerEnv, task: SeedTask): Promise<void> 
     .run();
 }
 
-export async function findPendingByDedup(env: LedgerEnv, dedupKey: string): Promise<string | null> {
+export async function findPendingByDedup(
+  env: LedgerEnv,
+  dedupKey: string,
+): Promise<string | null> {
   const row = await env.DB.prepare(
     `SELECT task_id FROM tasks WHERE dedup_key = ? AND status IN ('queued','processing') LIMIT 1`,
   )
@@ -44,7 +50,10 @@ export async function findPendingByDedup(env: LedgerEnv, dedupKey: string): Prom
   return row?.task_id ?? null;
 }
 
-export async function markProcessing(env: LedgerEnv, taskId: string): Promise<void> {
+export async function markProcessing(
+  env: LedgerEnv,
+  taskId: string,
+): Promise<void> {
   await env.DB.prepare(
     `UPDATE tasks SET status='processing', started_at=COALESCE(started_at, ?) WHERE task_id=?`,
   )
@@ -101,7 +110,10 @@ export interface TaskStatusRow {
   records: CreatedRecord[];
 }
 
-export async function getTaskStatus(env: LedgerEnv, taskId: string): Promise<TaskStatusRow | null> {
+export async function getTaskStatus(
+  env: LedgerEnv,
+  taskId: string,
+): Promise<TaskStatusRow | null> {
   const row = await env.DB.prepare(
     `SELECT task_id, status, places_created, entities_created, skipped, notes, records, error, created_at, started_at, finished_at
      FROM tasks WHERE task_id=?`,
@@ -138,7 +150,10 @@ export async function getTaskStatus(env: LedgerEnv, taskId: string): Promise<Tas
 
 // Cron sweeper: tasks stuck in failed/partial that the agent's own retries did
 // not resolve. Returns the stored task envelopes for re-enqueue.
-export async function listRequeuable(env: LedgerEnv, limit = 50): Promise<SeedTask[]> {
+export async function listRequeuable(
+  env: LedgerEnv,
+  limit = 50,
+): Promise<SeedTask[]> {
   const { results } = await env.DB.prepare(
     `SELECT task_json FROM tasks WHERE status IN ('failed','partial') ORDER BY created_at LIMIT ?`,
   )

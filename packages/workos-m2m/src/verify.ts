@@ -50,14 +50,24 @@ export function m2mConfig(env: {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  return { authkitDomain, audience, allowedOrgIds: orgs.length ? orgs : undefined };
+  return {
+    authkitDomain,
+    audience,
+    allowedOrgIds: orgs.length ? orgs : undefined,
+  };
 }
 
 // jose caches the keys; key the remote set by domain so a config change rebuilds it.
-let jwksCache: { domain: string; jwks: ReturnType<typeof createRemoteJWKSet> } | null = null;
+let jwksCache: {
+  domain: string;
+  jwks: ReturnType<typeof createRemoteJWKSet>;
+} | null = null;
 function getJwks(domain: string) {
   if (!jwksCache || jwksCache.domain !== domain) {
-    jwksCache = { domain, jwks: createRemoteJWKSet(new URL(`${domain}/oauth2/jwks`)) };
+    jwksCache = {
+      domain,
+      jwks: createRemoteJWKSet(new URL(`${domain}/oauth2/jwks`)),
+    };
   }
   return jwksCache.jwks;
 }
@@ -69,7 +79,10 @@ export interface VerifyResult {
   error?: string;
 }
 
-export async function verifyM2M(request: Request, cfg: M2MConfig): Promise<VerifyResult> {
+export async function verifyM2M(
+  request: Request,
+  cfg: M2MConfig,
+): Promise<VerifyResult> {
   const header = request.headers.get("authorization") ?? "";
   const match = /^Bearer\s+(.+)$/i.exec(header);
   if (!match) return { ok: false, status: 401, error: "missing bearer token" };
@@ -80,14 +93,17 @@ export async function verifyM2M(request: Request, cfg: M2MConfig): Promise<Verif
       audience: cfg.audience,
     });
     if (cfg.allowedOrgIds) {
-      const org = typeof payload.org_id === "string" ? payload.org_id : undefined;
+      const org =
+        typeof payload.org_id === "string" ? payload.org_id : undefined;
       if (!org || !cfg.allowedOrgIds.includes(org)) {
         return { ok: false, status: 403, error: "organization not allowed" };
       }
     }
     return { ok: true, payload };
   } catch (e) {
-    console.error("m2m verify failed", { error: e instanceof Error ? e.message : String(e) });
+    console.error("m2m verify failed", {
+      error: e instanceof Error ? e.message : String(e),
+    });
     return { ok: false, status: 401, error: "invalid token" };
   }
 }

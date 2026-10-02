@@ -23,13 +23,29 @@ import { z } from "zod";
 import { fetchM2MToken } from "@kweli-mcp/workos-m2m";
 import { buildSink, Tracer } from "@kweli-mcp/telemetry";
 import { getTaskStatus } from "@kweli-mcp/shared";
-import { BUNDU_COMMONS_ID, buildClient, COLLECTION, DB, tierSpec, verifyEntityUrl, verifyPlaceUrl } from "@kweli-mcp/mongo";
+import {
+  BUNDU_COMMONS_ID,
+  buildClient,
+  COLLECTION,
+  DB,
+  tierSpec,
+  verifyEntityUrl,
+  verifyPlaceUrl,
+} from "@kweli-mcp/mongo";
 import { encodePlusCode } from "@kweli-mcp/shared";
 import { overpassLookup } from "@kweli-mcp/skills";
 import { resolveHierarchy } from "@kweli-mcp/skills";
-import { bulkIntentSchema, categoriesSchema, regionSchema, sourceSchema } from "@kweli-mcp/shared";
+import {
+  bulkIntentSchema,
+  categoriesSchema,
+  regionSchema,
+  sourceSchema,
+} from "@kweli-mcp/shared";
 
-type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
+type ToolResult = {
+  content: { type: "text"; text: string }[];
+  isError?: boolean;
+};
 
 function ok(value: unknown): ToolResult {
   return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
@@ -38,12 +54,18 @@ function ok(value: unknown): ToolResult {
 // Mongo documents carry BSON types (Date, Double); EJSON renders them cleanly.
 function okEjson(value: unknown): ToolResult {
   return {
-    content: [{ type: "text", text: EJSON.stringify(value, undefined, 2, { relaxed: true }) }],
+    content: [
+      {
+        type: "text",
+        text: EJSON.stringify(value, undefined, 2, { relaxed: true }),
+      },
+    ],
   };
 }
 
 function fail(err: unknown): ToolResult {
-  const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+  const message =
+    err instanceof Error ? `${err.name}: ${err.message}` : String(err);
   return { content: [{ type: "text", text: message }], isError: true };
 }
 
@@ -111,7 +133,10 @@ interface EntityDoc {
   slug?: string;
   entityType?: string;
   schemaOrgType?: string;
-  bundu?: { verificationTier?: number; trustSignals?: { ubuntuScore?: number } };
+  bundu?: {
+    verificationTier?: number;
+    trustSignals?: { ubuntuScore?: number };
+  };
 }
 
 export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
@@ -195,7 +220,11 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
     this.server.tool(
       "seed_region",
       "Enqueue a bulk-place-agent seed task for a region. The main entry point — what a search-miss or app empty-state calls. Returns immediately with a task id; ingestion runs asynchronously on bulk-place-agent, which any Nyuchi/Mukoko app can also call directly at its own POST /tasks.",
-      { region: regionSchema, categories: categoriesSchema.optional(), source: sourceSchema },
+      {
+        region: regionSchema,
+        categories: categoriesSchema.optional(),
+        source: sourceSchema,
+      },
       { ...ENQUEUE, title: "Seed region" },
       async ({ region, categories, source }) => {
         try {
@@ -244,7 +273,7 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
 
     this.server.tool(
       "request_place",
-      "Ask single-place-agent to create exactly one named place on request (not an area sweep) — e.g. \"my company's office at this address\". Returns immediately with a task id; single-place-agent can also be called directly by any Nyuchi/Mukoko app at its own POST /tasks.",
+      'Ask single-place-agent to create exactly one named place on request (not an area sweep) — e.g. "my company\'s office at this address". Returns immediately with a task id; single-place-agent can also be called directly by any Nyuchi/Mukoko app at its own POST /tasks.',
       {
         name: z.string().min(1),
         lat: z.number().optional(),
@@ -257,8 +286,17 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
         try {
           const resp = await this.callAgentTasks(
             this.env.SINGLE_PLACE_AGENT,
-            { clientId: this.env.SINGLE_M2M_CLIENT_ID, clientSecret: this.env.SINGLE_M2M_CLIENT_SECRET },
-            { name, lat, lng, address, source: { kind: "ops_mcp", requestedByPersonId } },
+            {
+              clientId: this.env.SINGLE_M2M_CLIENT_ID,
+              clientSecret: this.env.SINGLE_M2M_CLIENT_SECRET,
+            },
+            {
+              name,
+              lat,
+              lng,
+              address,
+              source: { kind: "ops_mcp", requestedByPersonId },
+            },
           );
           const body = await resp.json();
           if (!resp.ok) return fail(new Error(JSON.stringify(body)));
@@ -305,14 +343,20 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
             ? await client
                 .db(DB.places)
                 .collection(COLLECTION.places)
-                .find({ _id: { $in: placeIds as never } }, { projection: PLACE_PROJECTION })
+                .find(
+                  { _id: { $in: placeIds as never } },
+                  { projection: PLACE_PROJECTION },
+                )
                 .toArray()
             : [];
           const entities = entityIds.length
             ? await client
                 .db(DB.entity)
                 .collection(COLLECTION.entities)
-                .find({ _id: { $in: entityIds as never } }, { projection: ENTITY_PROJECTION })
+                .find(
+                  { _id: { $in: entityIds as never } },
+                  { projection: ENTITY_PROJECTION },
+                )
                 .toArray()
             : [];
 
@@ -339,7 +383,10 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
       "Show the tier-0 places Fundi has created (most recent first, or nearest to a point), each with its linked unverified entity. Reads places.places + entity.entities.",
       {
         limit: z.number().int().min(1).max(50).optional(),
-        near: z.tuple([z.number(), z.number()]).optional().describe("[lng, lat] — return nearest"),
+        near: z
+          .tuple([z.number(), z.number()])
+          .optional()
+          .describe("[lng, lat] — return nearest"),
         radiusMeters: z.number().positive().max(50_000).optional(),
       },
       { ...READ, title: "List recent places" },
@@ -347,7 +394,9 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
         try {
           const client = await this.getMongo();
           const places = client.db(DB.places).collection(COLLECTION.places);
-          const filter: Record<string, unknown> = { "sourceProvenance.dataOrigin": "osm" };
+          const filter: Record<string, unknown> = {
+            "sourceProvenance.dataOrigin": "osm",
+          };
 
           let cursor;
           if (near) {
@@ -357,7 +406,10 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
                 $maxDistance: radiusMeters ?? 5000,
               },
             };
-            cursor = places.find(filter, { projection: PLACE_PROJECTION, limit: limit ?? 10 });
+            cursor = places.find(filter, {
+              projection: PLACE_PROJECTION,
+              limit: limit ?? 10,
+            });
           } else {
             cursor = places.find(filter, {
               projection: PLACE_PROJECTION,
@@ -379,7 +431,10 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
             const entities = await client
               .db(DB.entity)
               .collection(COLLECTION.entities)
-              .find({ _id: { $in: ownerIds as never } }, { projection: ENTITY_PROJECTION })
+              .find(
+                { _id: { $in: ownerIds as never } },
+                { projection: ENTITY_PROJECTION },
+              )
               .toArray();
             for (const e of entities) entityById.set(String(e._id), e);
           }
@@ -398,7 +453,11 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
     this.server.tool(
       "compute_pluscode",
       "Compute an Open Location Code (Plus Code) from lat/lng, locally — no API, no key.",
-      { lat: z.number(), lng: z.number(), codeLength: z.number().int().min(2).max(15).optional() },
+      {
+        lat: z.number(),
+        lng: z.number(),
+        codeLength: z.number().int().min(2).max(15).optional(),
+      },
       { ...READ, title: "Compute Plus Code" },
       async ({ lat, lng, codeLength }) => {
         try {
@@ -413,7 +472,9 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
       "overpass_lookup",
       "Query OSM/Overpass for features in a bbox by category (read-only; does not write records).",
       {
-        bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]).describe("[s, w, n, e]"),
+        bbox: z
+          .tuple([z.number(), z.number(), z.number(), z.number()])
+          .describe("[s, w, n, e]"),
         categories: categoriesSchema.optional(),
         endpoint: z.string().url().optional(),
       },
@@ -426,7 +487,10 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
             { s, w, n, e },
             categories ?? "all",
           );
-          return ok({ count: features.length, features: features.slice(0, 50) });
+          return ok({
+            count: features.length,
+            features: features.slice(0, 50),
+          });
         } catch (e) {
           return fail(e);
         }
@@ -439,7 +503,11 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
       {
         lat: z.number(),
         lng: z.number(),
-        endpoint: z.string().url().optional().describe("Nominatim base URL override."),
+        endpoint: z
+          .string()
+          .url()
+          .optional()
+          .describe("Nominatim base URL override."),
       },
       { ...READ, openWorldHint: true, title: "Resolve hierarchy" },
       async ({ lat, lng, endpoint }) => {
@@ -464,10 +532,24 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
       "List seeded administrative areas in placesGeo by type (continent, country, province, city, town, village, district, region). Shows what geographic hierarchy data is available for containment resolution.",
       {
         geoType: z
-          .enum(["continent", "country", "province", "city", "town", "village", "district", "region"])
+          .enum([
+            "continent",
+            "country",
+            "province",
+            "city",
+            "town",
+            "village",
+            "district",
+            "region",
+          ])
           .optional()
-          .describe("Filter by admin level. Omit to see counts across all types."),
-        parentPlaceId: z.string().optional().describe("Filter to children of a specific parent."),
+          .describe(
+            "Filter by admin level. Omit to see counts across all types.",
+          ),
+        parentPlaceId: z
+          .string()
+          .optional()
+          .describe("Filter to children of a specific parent."),
         limit: z.number().int().min(1).max(100).default(20),
       },
       { ...READ, title: "List geo areas" },
@@ -478,7 +560,10 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
 
           if (!geoType) {
             const counts = await col
-              .aggregate([{ $group: { _id: "$geoType", count: { $sum: 1 } } }, { $sort: { count: -1 } }])
+              .aggregate([
+                { $group: { _id: "$geoType", count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+              ])
               .toArray();
             return ok({ summary: counts });
           }
@@ -488,7 +573,14 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
 
           const docs = await col
             .find(filter, {
-              projection: { _id: 1, name: 1, geoType: 1, isoCode: 1, parentPlaceId: 1, population: 1 },
+              projection: {
+                _id: 1,
+                name: 1,
+                geoType: 1,
+                isoCode: 1,
+                parentPlaceId: 1,
+                population: 1,
+              },
               limit,
               sort: { name: 1 },
             })
@@ -515,8 +607,13 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
         try {
           const client = await this.getMongo();
           const filter: Record<string, unknown> = { isActive: { $ne: false } };
-          if (query) filter.name = { $regex: escapeRegex(query), $options: "i" };
-          if (city) filter["address.city"] = { $regex: `^${escapeRegex(city)}`, $options: "i" };
+          if (query)
+            filter.name = { $regex: escapeRegex(query), $options: "i" };
+          if (city)
+            filter["address.city"] = {
+              $regex: `^${escapeRegex(city)}`,
+              $options: "i",
+            };
 
           const cap = Math.min(Math.max(Math.trunc(limit ?? 10), 1), 20);
           const docs = await client
@@ -540,11 +637,20 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
       async ({ id }) => {
         try {
           const client = await this.getMongo();
-          const col = client.db(DB.places).collection<PlaceDoc>(COLLECTION.places);
-          const doc = (await col.findOne({ _id: id })) ?? (await col.findOne({ slug: id }));
-          if (!doc) return fail(new Error(`get_place: no place found with id ${id}`));
+          const col = client
+            .db(DB.places)
+            .collection<PlaceDoc>(COLLECTION.places);
+          const doc =
+            (await col.findOne({ _id: id })) ??
+            (await col.findOne({ slug: id }));
+          if (!doc)
+            return fail(new Error(`get_place: no place found with id ${id}`));
 
-          const tier = Number((doc.bundu as { verificationTier?: number } | undefined)?.verificationTier) || 0;
+          const tier =
+            Number(
+              (doc.bundu as { verificationTier?: number } | undefined)
+                ?.verificationTier,
+            ) || 0;
           return ok({
             id: doc._id,
             name: doc.name,
@@ -574,16 +680,32 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
       async ({ id }) => {
         try {
           const client = await this.getMongo();
-          const entities = client.db(DB.entity).collection<EntityDoc>(COLLECTION.entities);
-          const doc = (await entities.findOne({ _id: id })) ?? (await entities.findOne({ slug: id }));
-          if (!doc) return fail(new Error(`get_organization: no organization found with id ${id}`));
+          const entities = client
+            .db(DB.entity)
+            .collection<EntityDoc>(COLLECTION.entities);
+          const doc =
+            (await entities.findOne({ _id: id })) ??
+            (await entities.findOne({ slug: id }));
+          if (!doc)
+            return fail(
+              new Error(
+                `get_organization: no organization found with id ${id}`,
+              ),
+            );
 
-          const tier = Number((doc.bundu as { verificationTier?: number } | undefined)?.verificationTier) || 0;
+          const tier =
+            Number(
+              (doc.bundu as { verificationTier?: number } | undefined)
+                ?.verificationTier,
+            ) || 0;
           const spec = tierSpec(tier);
           const placeCount = await client
             .db(DB.places)
             .collection(COLLECTION.places)
-            .countDocuments({ ownerEntityId: doc._id, isActive: { $ne: false } });
+            .countDocuments({
+              ownerEntityId: doc._id,
+              isActive: { $ne: false },
+            });
 
           return ok({
             id: doc._id,
@@ -594,8 +716,12 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
             schemaOrgType: doc.schemaOrgType,
             placeCount,
             verification: { tier, label: spec.label, mineral: spec.mineral },
-            ubuntuScore: (doc.bundu as { trustSignals?: { ubuntuScore?: number } } | undefined)?.trustSignals
-              ?.ubuntuScore ?? null,
+            ubuntuScore:
+              (
+                doc.bundu as
+                  | { trustSignals?: { ubuntuScore?: number } }
+                  | undefined
+              )?.trustSignals?.ubuntuScore ?? null,
             verifyUrl: verifyEntityUrl(doc._id),
           });
         } catch (e) {
@@ -611,17 +737,37 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
       { ...READ, title: "Get verification status" },
       async ({ placeId, entityId }) => {
         if (!placeId && !entityId) {
-          return fail(new Error("get_verification: pass exactly one of placeId or entityId"));
+          return fail(
+            new Error(
+              "get_verification: pass exactly one of placeId or entityId",
+            ),
+          );
         }
         if (placeId && entityId) {
-          return fail(new Error("get_verification: pass exactly one of placeId or entityId, not both"));
+          return fail(
+            new Error(
+              "get_verification: pass exactly one of placeId or entityId, not both",
+            ),
+          );
         }
         try {
           const client = await this.getMongo();
           if (entityId) {
-            const doc = await client.db(DB.entity).collection<EntityDoc>(COLLECTION.entities).findOne({ _id: entityId });
-            if (!doc) return fail(new Error(`get_verification: no organization found with id ${entityId}`));
-            const tier = Number((doc.bundu as { verificationTier?: number } | undefined)?.verificationTier) || 0;
+            const doc = await client
+              .db(DB.entity)
+              .collection<EntityDoc>(COLLECTION.entities)
+              .findOne({ _id: entityId });
+            if (!doc)
+              return fail(
+                new Error(
+                  `get_verification: no organization found with id ${entityId}`,
+                ),
+              );
+            const tier =
+              Number(
+                (doc.bundu as { verificationTier?: number } | undefined)
+                  ?.verificationTier,
+              ) || 0;
             const spec = tierSpec(tier);
             return ok({
               entityId: doc._id,
@@ -633,9 +779,19 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
               verifyUrl: verifyEntityUrl(doc._id),
             });
           }
-          const doc = await client.db(DB.places).collection<PlaceDoc>(COLLECTION.places).findOne({ _id: placeId });
-          if (!doc) return fail(new Error(`get_verification: no place found with id ${placeId}`));
-          const tier = Number((doc.bundu as { verificationTier?: number } | undefined)?.verificationTier) || 0;
+          const doc = await client
+            .db(DB.places)
+            .collection<PlaceDoc>(COLLECTION.places)
+            .findOne({ _id: placeId });
+          if (!doc)
+            return fail(
+              new Error(`get_verification: no place found with id ${placeId}`),
+            );
+          const tier =
+            Number(
+              (doc.bundu as { verificationTier?: number } | undefined)
+                ?.verificationTier,
+            ) || 0;
           const spec = tierSpec(tier);
           return ok({
             placeId: doc._id,
@@ -663,31 +819,48 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
           const places = client.db(DB.places).collection(COLLECTION.places);
           const entities = client.db(DB.entity).collection(COLLECTION.entities);
 
-          const [total, byCountry, topCities, byTier, orgsByTier] = await Promise.all([
-            places.countDocuments({ isActive: { $ne: false } }),
-            places
-              .aggregate([
-                { $match: { isActive: { $ne: false } } },
-                { $group: { _id: "$hierarchy.countryId", count: { $sum: 1 } } },
-                { $sort: { count: -1 } },
-                { $limit: 20 },
-              ])
-              .toArray(),
-            places
-              .aggregate([
-                { $match: { isActive: { $ne: false } } },
-                { $group: { _id: "$address.city", count: { $sum: 1 } } },
-                { $sort: { count: -1 } },
-                { $limit: 10 },
-              ])
-              .toArray(),
-            places
-              .aggregate([{ $group: { _id: { $ifNull: ["$bundu.verificationTier", 0] }, count: { $sum: 1 } } }])
-              .toArray(),
-            entities
-              .aggregate([{ $group: { _id: { $ifNull: ["$bundu.verificationTier", 0] }, count: { $sum: 1 } } }])
-              .toArray(),
-          ]);
+          const [total, byCountry, topCities, byTier, orgsByTier] =
+            await Promise.all([
+              places.countDocuments({ isActive: { $ne: false } }),
+              places
+                .aggregate([
+                  { $match: { isActive: { $ne: false } } },
+                  {
+                    $group: { _id: "$hierarchy.countryId", count: { $sum: 1 } },
+                  },
+                  { $sort: { count: -1 } },
+                  { $limit: 20 },
+                ])
+                .toArray(),
+              places
+                .aggregate([
+                  { $match: { isActive: { $ne: false } } },
+                  { $group: { _id: "$address.city", count: { $sum: 1 } } },
+                  { $sort: { count: -1 } },
+                  { $limit: 10 },
+                ])
+                .toArray(),
+              places
+                .aggregate([
+                  {
+                    $group: {
+                      _id: { $ifNull: ["$bundu.verificationTier", 0] },
+                      count: { $sum: 1 },
+                    },
+                  },
+                ])
+                .toArray(),
+              entities
+                .aggregate([
+                  {
+                    $group: {
+                      _id: { $ifNull: ["$bundu.verificationTier", 0] },
+                      count: { $sum: 1 },
+                    },
+                  },
+                ])
+                .toArray(),
+            ]);
 
           return ok({
             totalPlaces: total,

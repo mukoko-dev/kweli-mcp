@@ -16,7 +16,10 @@ import OAuthProvider, {
   getOAuthApi,
   type OAuthProviderOptions,
 } from "@cloudflare/workers-oauth-provider";
-import { createKweliAuthkitHandler, type KweliAuthkitApp } from "./authkit-handler";
+import {
+  createKweliAuthkitHandler,
+  type KweliAuthkitApp,
+} from "./authkit-handler";
 import { KweliMcp } from "./mcp";
 import { mcpBasePath } from "./paths";
 
@@ -58,7 +61,11 @@ function mountFor(basePath: string): Mount {
 }
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<Response> {
     const basePath = mcpBasePath(env);
     const { options, provider, defaultHandler } = mountFor(basePath);
     const { pathname } = new URL(request.url);

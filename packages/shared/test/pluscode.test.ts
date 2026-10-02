@@ -12,11 +12,15 @@ describe("encodePlusCode", () => {
 
   it("produces a well-formed length-10 code by default", () => {
     const code = encodePlusCode(-17.8292, 31.0492);
-    expect(code).toMatch(/^[23456789CFGHJMPQRVWX]{8}\+[23456789CFGHJMPQRVWX]{2}$/);
+    expect(code).toMatch(
+      /^[23456789CFGHJMPQRVWX]{8}\+[23456789CFGHJMPQRVWX]{2}$/,
+    );
   });
 
   it("is deterministic", () => {
-    expect(encodePlusCode(-1.2921, 36.8219)).toBe(encodePlusCode(-1.2921, 36.8219));
+    expect(encodePlusCode(-1.2921, 36.8219)).toBe(
+      encodePlusCode(-1.2921, 36.8219),
+    );
   });
 
   it("rejects non-finite input", () => {

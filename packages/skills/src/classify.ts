@@ -66,7 +66,14 @@ const ATTRACTION_TOURISM = new Set([
   "aquarium",
 ]);
 
-const FOOD_AMENITY = new Set(["restaurant", "cafe", "fast_food", "pub", "bar", "biergarten"]);
+const FOOD_AMENITY = new Set([
+  "restaurant",
+  "cafe",
+  "fast_food",
+  "pub",
+  "bar",
+  "biergarten",
+]);
 
 const BUSINESS_AMENITY = new Set([
   "bank",
@@ -82,7 +89,9 @@ const BUSINESS_AMENITY = new Set([
 ]);
 
 function pickName(tags: Record<string, string>): string | null {
-  return tags.name || tags["name:en"] || tags.official_name || tags.brand || null;
+  return (
+    tags.name || tags["name:en"] || tags.official_name || tags.brand || null
+  );
 }
 
 function dedupe(types: PlaceType[]): PlaceType[] {
@@ -94,7 +103,11 @@ export function classify(feature: OsmFeature): Classification {
   const name = pickName(t);
 
   // ---- Natural / owner-less places (Bundu Commons custodian) ----
-  if (t.natural === "peak" || t.natural === "volcano" || t.natural === "ridge") {
+  if (
+    t.natural === "peak" ||
+    t.natural === "volcano" ||
+    t.natural === "ridge"
+  ) {
     return {
       isBusiness: false,
       placeType: ["Mountain", "Landform"],
@@ -103,7 +116,12 @@ export function classify(feature: OsmFeature): Classification {
     };
   }
   if (t.natural === "beach") {
-    return { isBusiness: false, placeType: ["Beach"], schemaOrgType: "Organization", name };
+    return {
+      isBusiness: false,
+      placeType: ["Beach"],
+      schemaOrgType: "Organization",
+      name,
+    };
   }
   if (t.waterway === "waterfall" || t.natural === "waterfall") {
     return {
@@ -113,11 +131,25 @@ export function classify(feature: OsmFeature): Classification {
       name,
     };
   }
-  if (t.natural === "water" || t.water === "lake" || t.landuse === "reservoir") {
-    return { isBusiness: false, placeType: ["Lake"], schemaOrgType: "Organization", name };
+  if (
+    t.natural === "water" ||
+    t.water === "lake" ||
+    t.landuse === "reservoir"
+  ) {
+    return {
+      isBusiness: false,
+      placeType: ["Lake"],
+      schemaOrgType: "Organization",
+      name,
+    };
   }
   if (t.waterway === "river" || t.waterway === "stream") {
-    return { isBusiness: false, placeType: ["River"], schemaOrgType: "Organization", name };
+    return {
+      isBusiness: false,
+      placeType: ["River"],
+      schemaOrgType: "Organization",
+      name,
+    };
   }
   if (
     t.leisure === "park" ||
@@ -125,10 +157,20 @@ export function classify(feature: OsmFeature): Classification {
     t.boundary === "national_park" ||
     t.boundary === "protected_area"
   ) {
-    return { isBusiness: false, placeType: ["Park"], schemaOrgType: "Organization", name };
+    return {
+      isBusiness: false,
+      placeType: ["Park"],
+      schemaOrgType: "Organization",
+      name,
+    };
   }
   if (t.natural || t.geological) {
-    return { isBusiness: false, placeType: ["Landform"], schemaOrgType: "Organization", name };
+    return {
+      isBusiness: false,
+      placeType: ["Landform"],
+      schemaOrgType: "Organization",
+      name,
+    };
   }
 
   // ---- Businesses (place + unverified entity) ----
@@ -166,7 +208,9 @@ export function classify(feature: OsmFeature): Classification {
       t.tourism === "aquarium";
     return {
       isBusiness: operated,
-      placeType: operated ? dedupe(["TouristAttraction", "LocalBusiness"]) : ["TouristAttraction"],
+      placeType: operated
+        ? dedupe(["TouristAttraction", "LocalBusiness"])
+        : ["TouristAttraction"],
       schemaOrgType: "LocalBusiness",
       name,
     };
@@ -180,7 +224,12 @@ export function classify(feature: OsmFeature): Classification {
     };
   }
   if (t.office || t.craft) {
-    return { isBusiness: true, placeType: ["LocalBusiness"], schemaOrgType: "Organization", name };
+    return {
+      isBusiness: true,
+      placeType: ["LocalBusiness"],
+      schemaOrgType: "Organization",
+      name,
+    };
   }
   if (
     t.amenity === "place_of_worship" ||
@@ -196,5 +245,10 @@ export function classify(feature: OsmFeature): Classification {
     };
   }
 
-  return { isBusiness: false, placeType: ["Place"], schemaOrgType: "Organization", name };
+  return {
+    isBusiness: false,
+    placeType: ["Place"],
+    schemaOrgType: "Organization",
+    name,
+  };
 }

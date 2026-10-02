@@ -31,7 +31,12 @@
 
 import { Agent } from "agents";
 import { buildClient, DB } from "@kweli-mcp/mongo";
-import { buildSink, newSpanId, parseTraceparent, Tracer } from "@kweli-mcp/telemetry";
+import {
+  buildSink,
+  newSpanId,
+  parseTraceparent,
+  Tracer,
+} from "@kweli-mcp/telemetry";
 import { encodePlusCode } from "@kweli-mcp/shared";
 import {
   classify,
@@ -71,10 +76,15 @@ const USER_AGENT = "Mukoko-Platform/1.0 (hello@nyuchi.com)";
 // enough that it never pulls in an unrelated neighbour.
 const LOOKUP_RADIUS_DEGREES = 0.0007;
 
-async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+async function geocodeAddress(
+  address: string,
+): Promise<{ lat: number; lng: number } | null> {
   const url = `${NOMINATIM_ENDPOINT}/search?format=json&limit=1&q=${encodeURIComponent(address)}`;
-  const res = await fetch(url, { headers: { "user-agent": USER_AGENT, "accept-language": "en" } });
-  if (!res.ok) throw new Error(`Nominatim search ${res.status}: ${await res.text()}`);
+  const res = await fetch(url, {
+    headers: { "user-agent": USER_AGENT, "accept-language": "en" },
+  });
+  if (!res.ok)
+    throw new Error(`Nominatim search ${res.status}: ${await res.text()}`);
   const results = (await res.json()) as Array<{ lat: string; lon: string }>;
   const first = results[0];
   if (!first) return null;
@@ -95,7 +105,11 @@ function synthesizeFeature(name: string, lat: number, lng: number): OsmFeature {
 }
 
 export class SinglePlaceAgent extends Agent<Env, SinglePlaceState> {
-  initialState: SinglePlaceState = { request: null, status: "queued", result: null };
+  initialState: SinglePlaceState = {
+    request: null,
+    status: "queued",
+    result: null,
+  };
 
   /**
    * @param traceparent W3C header value from the caller, so this DO's work
@@ -114,7 +128,10 @@ export class SinglePlaceAgent extends Agent<Env, SinglePlaceState> {
       instanceId: taskId,
       sink: buildSink({ env: this.env }),
       ...(inbound
-        ? { context: { ...inbound, spanId: newSpanId() }, parentSpanId: inbound.spanId }
+        ? {
+            context: { ...inbound, spanId: newSpanId() },
+            parentSpanId: inbound.spanId,
+          }
         : {}),
     });
 
@@ -126,7 +143,11 @@ export class SinglePlaceAgent extends Agent<Env, SinglePlaceState> {
       return result;
     } catch (e) {
       tracer.error("submit.failed", e, { taskId });
-      const result: SinglePlaceResult = { taskId, status: "failed", error: "could not create place" };
+      const result: SinglePlaceResult = {
+        taskId,
+        status: "failed",
+        error: "could not create place",
+      };
       this.setState({ request, status: "failed", result });
       return result;
     }
@@ -141,13 +162,21 @@ export class SinglePlaceAgent extends Agent<Env, SinglePlaceState> {
     let lng = request.lng;
     if (lat === undefined || lng === undefined) {
       if (!request.address) {
-        return { taskId, status: "failed", error: "either lat/lng or address is required" };
+        return {
+          taskId,
+          status: "failed",
+          error: "either lat/lng or address is required",
+        };
       }
       const geocoded = await tracer.span("geocode.address", () =>
         geocodeAddress(request.address!),
       );
       if (!geocoded) {
-        return { taskId, status: "failed", error: `could not geocode address: ${request.address}` };
+        return {
+          taskId,
+          status: "failed",
+          error: `could not geocode address: ${request.address}`,
+        };
       }
       lat = geocoded.lat;
       lng = geocoded.lng;
@@ -174,7 +203,10 @@ export class SinglePlaceAgent extends Agent<Env, SinglePlaceState> {
           },
           "all",
         );
-        return nearby.find((f) => nameMatches(request.name, f.tags.name ?? null)) ?? null;
+        return (
+          nearby.find((f) => nameMatches(request.name, f.tags.name ?? null)) ??
+          null
+        );
       });
     } catch (e) {
       // Overpass being unavailable never blocks a manual single-place
@@ -185,10 +217,16 @@ export class SinglePlaceAgent extends Agent<Env, SinglePlaceState> {
       });
     }
 
-    const resolvedFeature = feature ?? synthesizeFeature(request.name, lat, lng);
+    const resolvedFeature =
+      feature ?? synthesizeFeature(request.name, lat, lng);
     const classification = feature
       ? classify(feature)
-      : { isBusiness: true, placeType: ["LocalBusiness"] as const, schemaOrgType: "LocalBusiness" as const, name: request.name };
+      : {
+          isBusiness: true,
+          placeType: ["LocalBusiness"] as const,
+          schemaOrgType: "LocalBusiness" as const,
+          name: request.name,
+        };
 
     const hierarchy = await tracer.span("resolve.hierarchy", () =>
       resolveHierarchy({ endpoint: NOMINATIM_ENDPOINT }, placesDb, lat, lng),
@@ -197,7 +235,10 @@ export class SinglePlaceAgent extends Agent<Env, SinglePlaceState> {
     const outcome = await tracer.span("mongo.write_records", () =>
       writeRecords(placesDb, entityDb, {
         feature: resolvedFeature,
-        classification: { ...classification, placeType: [...classification.placeType] },
+        classification: {
+          ...classification,
+          placeType: [...classification.placeType],
+        },
         name: request.name,
         plusCode: encodePlusCode(lat, lng, 10),
         what3words: null,
@@ -219,6 +260,11 @@ export class SinglePlaceAgent extends Agent<Env, SinglePlaceState> {
       ...outcome,
     });
 
-    return { taskId, status: "done", placeId: outcome.placeId, entityId: outcome.entityId };
+    return {
+      taskId,
+      status: "done",
+      placeId: outcome.placeId,
+      entityId: outcome.entityId,
+    };
   }
 }

@@ -34,7 +34,9 @@ describe("settlementsToTasks", () => {
       },
       "bulk:settlement",
     );
-    expect(tasks.every((t) => t.source.surface === "kweli-admin-sync")).toBe(true);
+    expect(tasks.every((t) => t.source.surface === "kweli-admin-sync")).toBe(
+      true,
+    );
     expect(tasks[0].categories).toEqual(["amenity"]);
   });
 });

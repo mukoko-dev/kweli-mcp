@@ -39,7 +39,10 @@ describe("parseTraceparent", () => {
     ["undefined", undefined],
     ["empty", ""],
     ["not a traceparent", "garbage"],
-    ["unsupported version", "01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"],
+    [
+      "unsupported version",
+      "01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+    ],
     ["short trace id", "00-4bf92f3577b34da6-00f067aa0ba902b7-01"],
     ["non-hex", "00-zzzz2f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"],
     ["missing flags", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7"],
@@ -50,8 +53,14 @@ describe("parseTraceparent", () => {
   it("rejects all-zero ids rather than propagating a broken trace", () => {
     // The spec requires this. Adopting an all-zero id would silently merge
     // every request from a broken upstream into one meaningless trace.
-    expect(parseTraceparent(`00-${"0".repeat(32)}-00f067aa0ba902b7-01`)).toBeNull();
-    expect(parseTraceparent(`00-4bf92f3577b34da6a3ce929d0e0e4736-${"0".repeat(16)}-01`)).toBeNull();
+    expect(
+      parseTraceparent(`00-${"0".repeat(32)}-00f067aa0ba902b7-01`),
+    ).toBeNull();
+    expect(
+      parseTraceparent(
+        `00-4bf92f3577b34da6a3ce929d0e0e4736-${"0".repeat(16)}-01`,
+      ),
+    ).toBeNull();
   });
 });
 
@@ -62,7 +71,11 @@ describe("formatTraceparent", () => {
 
   it("encodes the unsampled flag", () => {
     expect(
-      formatTraceparent({ traceId: "a".repeat(32), spanId: "b".repeat(16), sampled: false }),
+      formatTraceparent({
+        traceId: "a".repeat(32),
+        spanId: "b".repeat(16),
+        sampled: false,
+      }),
     ).toBe(`00-${"a".repeat(32)}-${"b".repeat(16)}-00`);
   });
 });
@@ -100,7 +113,9 @@ describe("contextFromHeaders", () => {
   });
 
   it("starts a new trace when the header is malformed", () => {
-    const { context, parentSpanId } = contextFromHeaders(new Headers({ traceparent: "junk" }));
+    const { context, parentSpanId } = contextFromHeaders(
+      new Headers({ traceparent: "junk" }),
+    );
     expect(context.traceId).toMatch(/^[0-9a-f]{32}$/);
     expect(parentSpanId).toBeNull();
   });
@@ -108,14 +123,19 @@ describe("contextFromHeaders", () => {
 
 describe("injectTraceparent", () => {
   it("adds the header while preserving existing ones", () => {
-    const headers = injectTraceparent({ authorization: "Bearer x" }, parseTraceparent(VALID)!);
+    const headers = injectTraceparent(
+      { authorization: "Bearer x" },
+      parseTraceparent(VALID)!,
+    );
     expect(headers.get("authorization")).toBe("Bearer x");
     expect(headers.get("traceparent")).toBe(VALID);
   });
 
   it("overwrites a stale traceparent rather than duplicating it", () => {
     const headers = injectTraceparent(
-      { traceparent: "00-11111111111111111111111111111111-2222222222222222-01" },
+      {
+        traceparent: "00-11111111111111111111111111111111-2222222222222222-01",
+      },
       parseTraceparent(VALID)!,
     );
     expect(headers.get("traceparent")).toBe(VALID);

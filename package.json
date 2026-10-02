@@ -13,8 +13,10 @@
     "dev": "turbo run dev",
     "test": "turbo run test",
     "type-check": "turbo run type-check",
-    "lint": "turbo run lint",
-    "deploy": "turbo run deploy"
+    "lint": "vp lint",
+    "deploy": "turbo run deploy",
+    "check": "vp check",
+    "fmt": "vp fmt"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

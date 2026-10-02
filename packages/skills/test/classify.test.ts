@@ -7,7 +7,9 @@ function feature(tags: Record<string, string>): OsmFeature {
 
 describe("classify", () => {
   it("treats a hotel as a business (place + entity)", () => {
-    const c = classify(feature({ name: "Rhino Safari Camp", tourism: "hotel" }));
+    const c = classify(
+      feature({ name: "Rhino Safari Camp", tourism: "hotel" }),
+    );
     expect(c.isBusiness).toBe(true);
     expect(c.placeType).toContain("Accommodation");
     expect(c.placeType).toContain("LocalBusiness");
@@ -21,7 +23,9 @@ describe("classify", () => {
   });
 
   it("treats a waterfall as a natural, owner-less place", () => {
-    const c = classify(feature({ name: "Victoria Falls", waterway: "waterfall" }));
+    const c = classify(
+      feature({ name: "Victoria Falls", waterway: "waterfall" }),
+    );
     expect(c.isBusiness).toBe(false);
     expect(c.placeType).toContain("TouristAttraction");
   });
@@ -29,7 +33,9 @@ describe("classify", () => {
   it("treats a peak as a mountain landform", () => {
     const c = classify(feature({ name: "Nyangani", natural: "peak" }));
     expect(c.isBusiness).toBe(false);
-    expect(c.placeType).toEqual(expect.arrayContaining(["Mountain", "Landform"]));
+    expect(c.placeType).toEqual(
+      expect.arrayContaining(["Mountain", "Landform"]),
+    );
   });
 
   it("treats a shop as a store business", () => {

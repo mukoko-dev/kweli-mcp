@@ -47,7 +47,9 @@ function slugify(name: string, idSuffix: string): string {
   return `${base || "place"}-${idSuffix}`;
 }
 
-function addressFromTags(tags: Record<string, string>): Record<string, string> | null {
+function addressFromTags(
+  tags: Record<string, string>,
+): Record<string, string> | null {
   const map: Record<string, string> = {};
   if (tags["addr:street"]) map.street = tags["addr:street"];
   if (tags["addr:housenumber"]) map.houseNumber = tags["addr:housenumber"];
@@ -73,7 +75,10 @@ export async function writeRecords(
   if (rec.classification.isBusiness) {
     const entities = entityDb.collection("entities");
     const candidateEntityId = uuidv7();
-    const entityFilter = { "sourceProvenance.legacyId": legacyId, entityType: "organization" };
+    const entityFilter = {
+      "sourceProvenance.legacyId": legacyId,
+      entityType: "organization",
+    };
 
     const entitySet: Record<string, unknown> = {
       _schemaVersion: SCHEMA_VERSION,
@@ -96,13 +101,21 @@ export async function writeRecords(
           verificationTier: 0,
         },
       },
-      sourceProvenance: { legacyId, sourceProject: "fundi", mirroredFrom: "osm" },
+      sourceProvenance: {
+        legacyId,
+        sourceProject: "fundi",
+        mirroredFrom: "osm",
+      },
     };
 
     const entityRes = await entities.updateOne(
       entityFilter,
       {
-        $setOnInsert: { _id: candidateEntityId as never, primaryPlaceId: placeId, createdAt: now },
+        $setOnInsert: {
+          _id: candidateEntityId as never,
+          primaryPlaceId: placeId,
+          createdAt: now,
+        },
         $set: entitySet,
       },
       { upsert: true },
@@ -112,12 +125,12 @@ export async function writeRecords(
       ownerEntityId = candidateEntityId;
       entityCreated = true;
     } else {
-      const existing = await entities.findOne<{ _id: string; primaryPlaceId?: string }>(
-        entityFilter,
-        {
-          projection: { _id: 1, primaryPlaceId: 1 },
-        },
-      );
+      const existing = await entities.findOne<{
+        _id: string;
+        primaryPlaceId?: string;
+      }>(entityFilter, {
+        projection: { _id: 1, primaryPlaceId: 1 },
+      });
       ownerEntityId = (existing?._id as string) ?? candidateEntityId;
       placeId = existing?.primaryPlaceId ?? placeId;
     }
@@ -143,10 +156,18 @@ export async function writeRecords(
     hierarchy: rec.hierarchy,
     bundu: {
       verificationTier: 0,
-      trustSignals: { ubuntuScore: new Double(0), communityVouches: 0, reviewCount: 0 },
+      trustSignals: {
+        ubuntuScore: new Double(0),
+        communityVouches: 0,
+        reviewCount: 0,
+      },
       informalEconomy: { isInformal: false },
       communityCaretakers: [],
-      osmContribution: { osmType: rec.feature.type, osmId: rec.feature.id, lastSyncedAt: now },
+      osmContribution: {
+        osmType: rec.feature.type,
+        osmId: rec.feature.id,
+        lastSyncedAt: now,
+      },
     },
     sourceProvenance: {
       legacyId,

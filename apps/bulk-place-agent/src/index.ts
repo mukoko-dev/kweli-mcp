@@ -23,7 +23,11 @@ import { z } from "zod";
 import { FundiAgent } from "./agent-do";
 import { submitBulkIntent, submitSeedTask } from "./enqueue";
 import { m2mConfig, verifyM2M, denyResponse } from "@kweli-mcp/workos-m2m";
-import { tracerForJob, tracerForRequest, type Tracer } from "@kweli-mcp/telemetry";
+import {
+  tracerForJob,
+  tracerForRequest,
+  type Tracer,
+} from "@kweli-mcp/telemetry";
 import {
   listRequeuable,
   markStatus,
@@ -42,15 +46,23 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-async function requireM2M(request: Request, env: Env): Promise<Response | null> {
+async function requireM2M(
+  request: Request,
+  env: Env,
+): Promise<Response | null> {
   const cfg = m2mConfig(env);
   if (!cfg) return denyResponse(503, "auth not configured");
   const result = await verifyM2M(request, cfg);
-  if (!result.ok) return denyResponse(result.status ?? 401, result.error ?? "unauthorized");
+  if (!result.ok)
+    return denyResponse(result.status ?? 401, result.error ?? "unauthorized");
   return null;
 }
 
-async function handleSubmit(request: Request, env: Env, tracer: Tracer): Promise<Response> {
+async function handleSubmit(
+  request: Request,
+  env: Env,
+  tracer: Tracer,
+): Promise<Response> {
   let body: unknown;
   try {
     body = await request.json();
@@ -61,7 +73,11 @@ async function handleSubmit(request: Request, env: Env, tracer: Tracer): Promise
   try {
     if (body && typeof body === "object" && "intent" in body) {
       const intent = bulkIntentSchema.parse(body);
-      const outcomes = await submitBulkIntent(env, intent, tracer.context.traceId);
+      const outcomes = await submitBulkIntent(
+        env,
+        intent,
+        tracer.context.traceId,
+      );
       return json({
         kind: "bulk",
         tasksCreated: outcomes.filter((o) => !o.deduped).length,
@@ -72,7 +88,11 @@ async function handleSubmit(request: Request, env: Env, tracer: Tracer): Promise
     const input = seedTaskInputSchema.parse(body);
     const outcome = await submitSeedTask(env, input, tracer.context.traceId);
     return json(
-      { kind: "seed", ...outcome, message: "This region will exist going forward." },
+      {
+        kind: "seed",
+        ...outcome,
+        message: "This region will exist going forward.",
+      },
       202,
     );
   } catch (e) {
@@ -88,7 +108,11 @@ async function handleSubmit(request: Request, env: Env, tracer: Tracer): Promise
 }
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<Response> {
     const url = new URL(request.url);
     const tracer = tracerForRequest(request, {
       serviceName: "kweli-bulk-place-agent",
@@ -118,10 +142,15 @@ export default {
         tracer.warn("force_run.denied", { status: denied.status });
         return denied;
       }
-      const body = (await request.json().catch(() => null)) as { taskId?: string } | null;
+      const body = (await request.json().catch(() => null)) as {
+        taskId?: string;
+      } | null;
       if (!body?.taskId) return json({ error: "taskId is required" }, 400);
       try {
-        const agent = await getAgentByName<Env, FundiAgent>(env.FUNDI_AGENT, body.taskId);
+        const agent = await getAgentByName<Env, FundiAgent>(
+          env.FUNDI_AGENT,
+          body.taskId,
+        );
         const status = await agent.forceRun();
         return json({ taskId: body.taskId, status });
       } catch (e) {
@@ -140,7 +169,10 @@ export default {
     for (const message of batch.messages) {
       const task = message.body;
       try {
-        const agent = await getAgentByName<Env, FundiAgent>(env.FUNDI_AGENT, task.taskId);
+        const agent = await getAgentByName<Env, FundiAgent>(
+          env.FUNDI_AGENT,
+          task.taskId,
+        );
         await agent.run(task);
         message.ack();
       } catch (e) {
@@ -158,7 +190,11 @@ export default {
   },
 
   // Cron sweeper: re-enqueue tasks the agent's retries missed.
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+  async scheduled(
+    _event: ScheduledController,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<void> {
     ctx.waitUntil(
       (async () => {
         const tasks = await listRequeuable(env, 50);

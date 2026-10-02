@@ -44,7 +44,9 @@ export async function createFakeIssuer(
   domain: string = FAKE_DOMAIN,
   defaultAudience = "client_test",
 ): Promise<FakeIssuer> {
-  const { publicKey, privateKey } = await generateKeyPair("RS256", { extractable: true });
+  const { publicKey, privateKey } = await generateKeyPair("RS256", {
+    extractable: true,
+  });
   const publicJwk = await exportJWK(publicKey as CryptoKey);
   publicJwk.kid = "test-key-1";
   publicJwk.alg = "RS256";
@@ -94,11 +96,19 @@ export interface StubOptions {
  * throws rather than silently falling through — a test that unexpectedly
  * reaches the network should fail loudly, not pass by accident.
  */
-export function stubIssuerFetch(issuer: FakeIssuer, options: StubOptions = {}): () => void {
+export function stubIssuerFetch(
+  issuer: FakeIssuer,
+  options: StubOptions = {},
+): () => void {
   const original = globalThis.fetch;
 
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
 
     if (url === `${issuer.domain}/oauth2/jwks`) {
       return new Response(JSON.stringify(await issuer.jwks()), {
@@ -116,7 +126,9 @@ export function stubIssuerFetch(issuer: FakeIssuer, options: StubOptions = {}): 
 
       const configured = options.tokenResponse;
       if (configured) {
-        return new Response(JSON.stringify(configured.body), { status: configured.status });
+        return new Response(JSON.stringify(configured.body), {
+          status: configured.status,
+        });
       }
       return new Response(
         JSON.stringify({ access_token: await issuer.sign(), expires_in: 3600 }),
@@ -133,7 +145,10 @@ export function stubIssuerFetch(issuer: FakeIssuer, options: StubOptions = {}): 
 }
 
 /** Build a request carrying a bearer token, as an agent's /tasks would receive. */
-export function bearerRequest(token: string | null, url = "https://agent.test/tasks"): Request {
+export function bearerRequest(
+  token: string | null,
+  url = "https://agent.test/tasks",
+): Request {
   return new Request(url, {
     method: "POST",
     headers: token ? { authorization: `Bearer ${token}` } : {},

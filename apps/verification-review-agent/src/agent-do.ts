@@ -38,7 +38,9 @@ export interface ClaimReviewState {
 export class VerificationReviewAgent extends Agent<Env, ClaimReviewState> {
   initialState: ClaimReviewState = { claimId: null, status: "not_implemented" };
 
-  async draftReview(claimId: string): Promise<{ claimId: string; status: string; note: string }> {
+  async draftReview(
+    claimId: string,
+  ): Promise<{ claimId: string; status: string; note: string }> {
     this.setState({ claimId, status: "not_implemented" });
     return {
       claimId,

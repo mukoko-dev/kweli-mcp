@@ -17,7 +17,9 @@ export async function resolveWhat3Words(
     const url = new URL(cfg.endpoint);
     url.searchParams.set("coordinates", `${lat},${lng}`);
     url.searchParams.set("key", cfg.apiKey);
-    const res = await fetch(url.toString(), { headers: { accept: "application/json" } });
+    const res = await fetch(url.toString(), {
+      headers: { accept: "application/json" },
+    });
     if (!res.ok) return null;
     const data = (await res.json()) as { words?: string };
     return data.words ?? null;
