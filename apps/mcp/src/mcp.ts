@@ -15,6 +15,7 @@
  * them, authenticating the same way everyone else does.
  */
 
+import { requireAuthkitDomain } from "./authkit-handler";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpAgent } from "agents/mcp";
 import { EJSON } from "bson";
@@ -195,7 +196,7 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
     body: unknown,
   ): Promise<Response> {
     const token = await fetchM2MToken({
-      authkitDomain: this.env.WORKOS_AUTHKIT_DOMAIN,
+      authkitDomain: requireAuthkitDomain(this.env),
       clientId: creds.clientId,
       clientSecret: creds.clientSecret,
       organizationId: creds.organizationId,
