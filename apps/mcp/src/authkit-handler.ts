@@ -113,7 +113,10 @@ export function authkitDomain(env: {
   return origin.replace(/\/+$/, "");
 }
 
-export function requireAuthkitDomain(env: { WORKOS_ISSUER?: string; WORKOS_AUTHKIT_DOMAIN?: string }): string {
+export function requireAuthkitDomain(env: {
+  WORKOS_ISSUER?: string;
+  WORKOS_AUTHKIT_DOMAIN?: string;
+}): string {
   const domain = authkitDomain(env);
   if (!domain) throw new Error(AUTHKIT_DOMAIN_MISSING);
   return domain;
