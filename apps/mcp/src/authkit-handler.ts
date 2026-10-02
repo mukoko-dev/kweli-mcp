@@ -83,7 +83,7 @@ async function startWorkOSFlow(
   if (env.WORKOS_ORGANIZATION_ID) {
     params.set("organization_id", env.WORKOS_ORGANIZATION_ID);
   }
-  return `${env.WORKOS_AUTHKIT_DOMAIN}/oauth2/authorize?${params}`;
+  return `${requireAuthkitDomain(env)}/oauth2/authorize?${params}`;
 }
 
 // ---
@@ -95,7 +95,42 @@ export type KweliAuthkitApp = Hono<HandlerEnv>;
 // Routes are declared mount-relative and mounted under the base path by
 // createKweliAuthkitHandler below, so `/authorize` here is served at
 // `https://kweli.mukoko.com/mcp/authorize`.
+export const AUTHKIT_DOMAIN_MISSING = "WORKOS_ISSUER is not configured";
+
+/**
+ * The WorkOS AuthKit issuer, from configuration only — WORKOS_ISSUER, or its
+ * legacy alias WORKOS_AUTHKIT_DOMAIN (the same precedence as
+ * @kweli/workos-m2m's verifier). No compiled-in default, no fallback. Accepts a
+ * bare host or an https origin; trims whitespace and any trailing slash.
+ */
+export function authkitDomain(env: {
+  WORKOS_ISSUER?: string;
+  WORKOS_AUTHKIT_DOMAIN?: string;
+}): string | null {
+  const raw = (env.WORKOS_ISSUER || env.WORKOS_AUTHKIT_DOMAIN || "").trim();
+  if (!raw) return null;
+  const origin = /^https?:\/\//.test(raw) ? raw : `https://${raw}`;
+  return origin.replace(/\/+$/, "");
+}
+
+export function requireAuthkitDomain(env: { WORKOS_ISSUER?: string; WORKOS_AUTHKIT_DOMAIN?: string }): string {
+  const domain = authkitDomain(env);
+  if (!domain) throw new Error(AUTHKIT_DOMAIN_MISSING);
+  return domain;
+}
+
 const app = new Hono<HandlerEnv>();
+
+// The sign-in flow needs the AuthKit issuer, which comes only from
+// configuration. Without it, fail closed and say which setting is missing.
+for (const path of ["/authorize", "/callback"]) {
+  app.use(path, async (c, next) => {
+    if (!authkitDomain(c.env)) {
+      return c.text(`Service Unavailable: ${AUTHKIT_DOMAIN_MISSING}`, 503);
+    }
+    await next();
+  });
+}
 
 app.get("/", (c) => {
   return c.html(landingHtml(mcpBasePath(c.env)), 200, {
@@ -244,7 +279,7 @@ app.get("/callback", async (c) => {
   // Must be byte-identical to the one sent to /authorize, or WorkOS rejects
   // the exchange — hence the shared helper rather than a second literal.
   const redirectUri = callbackUrl(c.env, c.req.url);
-  const tokenRes = await fetch(`${c.env.WORKOS_AUTHKIT_DOMAIN}/oauth2/token`, {
+  const tokenRes = await fetch(`${requireAuthkitDomain(c.env)}/oauth2/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({

@@ -11,10 +11,10 @@
 # `wrangler secret put`). `keep_vars: true` in wrangler.jsonc is what stops a
 # deploy from deleting them.
 
-# The WorkOS issuer. `accounts` (plural) — `account.mukoko.com` is a different
-# host. Production: https://accounts.mukoko.com
-# Staging:    https://accounts-staging.mukoko.com
-WORKOS_ISSUER="https://accounts.mukoko.com"
+# The WorkOS AuthKit issuer. REQUIRED and set per environment — never
+# committed, no default in code (1Password nyuchi/workos, field
+# WORKOS_AUTHKIT_DOMAIN). Use your environment's AuthKit domain here.
+WORKOS_ISSUER="https://<your-authkit-domain>"
 
 # This agent's own M2M application ("Kweli Fundi"). Inbound tokens are verified
 # against it; org-restricted, so only the Nyuchi org can trigger a bulk seed.
