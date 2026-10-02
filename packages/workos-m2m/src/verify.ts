@@ -16,17 +16,12 @@
 
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 
+import { normaliseAuthkitDomain } from "./issuer";
+
 export interface M2MConfig {
-  authkitDomain: string; // e.g. https://your-env.authkit.app (no trailing slash)
+  authkitDomain: string; // an https origin, e.g. https://your-env.authkit.app
   audience: string[]; // allowed `aud` — this agent's own M2M app client id(s)
   allowedOrgIds?: string[];
-}
-
-// Non-regex trailing-slash strip (avoids a polynomial-regex ReDoS surface).
-function stripTrailingSlashes(s: string): string {
-  let end = s.length;
-  while (end > 0 && s.charCodeAt(end - 1) === 47 /* "/" */) end--;
-  return s.slice(0, end);
 }
 
 export function m2mConfig(env: {
@@ -39,8 +34,18 @@ export function m2mConfig(env: {
   // spelled WORKOS_AUTHKIT_DOMAIN / WORKOS_ISSUER / WORKOS_AUTHORIZATION_SERVER
   // / AUTHKIT_DOMAIN across the estate, and that inconsistency is what made the
   // Aug 2026 issuer migration a per-service hunt. Accept both, prefer the new.
-  const trimmed = (env.WORKOS_ISSUER || env.WORKOS_AUTHKIT_DOMAIN)?.trim();
-  const authkitDomain = trimmed ? stripTrailingSlashes(trimmed) : undefined;
+  //
+  // Parsed into an https origin (see issuer.ts). Unset or unusable — http,
+  // another scheme, credentials, unparseable — is treated as unconfigured, so
+  // callers answer 503 rather than verifying against a value we did not mean.
+  let authkitDomain: string | undefined;
+  try {
+    authkitDomain = normaliseAuthkitDomain(
+      (env.WORKOS_ISSUER || env.WORKOS_AUTHKIT_DOMAIN)?.trim() || undefined,
+    );
+  } catch {
+    authkitDomain = undefined;
+  }
   const audience = (env.WORKOS_M2M_CLIENT_ID ?? "")
     .split(",")
     .map((s) => s.trim())
@@ -66,7 +71,7 @@ function getJwks(domain: string) {
   if (!jwksCache || jwksCache.domain !== domain) {
     jwksCache = {
       domain,
-      jwks: createRemoteJWKSet(new URL(`${domain}/oauth2/jwks`)),
+      jwks: createRemoteJWKSet(new URL("/oauth2/jwks", domain)),
     };
   }
   return jwksCache.jwks;
@@ -88,8 +93,11 @@ export async function verifyM2M(
   if (!match) return { ok: false, status: 401, error: "missing bearer token" };
 
   try {
-    const { payload } = await jwtVerify(match[1], getJwks(cfg.authkitDomain), {
-      issuer: cfg.authkitDomain,
+    // Re-normalised here too, so a hand-built config cannot reintroduce a
+    // trailing slash, path or http scheme. `iss` must equal the origin exactly.
+    const issuer = normaliseAuthkitDomain(cfg.authkitDomain);
+    const { payload } = await jwtVerify(match[1], getJwks(issuer), {
+      issuer,
       audience: cfg.audience,
     });
     if (cfg.allowedOrgIds) {

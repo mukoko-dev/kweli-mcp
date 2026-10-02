@@ -2,6 +2,7 @@ import type {
   AuthRequest,
   OAuthHelpers,
 } from "@cloudflare/workers-oauth-provider";
+import { normaliseAuthkitDomain } from "@kweli-mcp/workos-m2m";
 import { Hono } from "hono";
 import * as jose from "jose";
 import { iconSvg } from "./icon";
@@ -83,7 +84,9 @@ async function startWorkOSFlow(
   if (env.WORKOS_ORGANIZATION_ID) {
     params.set("organization_id", env.WORKOS_ORGANIZATION_ID);
   }
-  return `${requireAuthkitDomain(env)}/oauth2/authorize?${params}`;
+  const url = new URL("/oauth2/authorize", requireAuthkitDomain(env));
+  url.search = params.toString();
+  return url.href;
 }
 
 // ---
@@ -100,17 +103,23 @@ export const AUTHKIT_DOMAIN_MISSING = "WORKOS_ISSUER is not configured";
 /**
  * The WorkOS AuthKit issuer, from configuration only — WORKOS_ISSUER, or its
  * legacy alias WORKOS_AUTHKIT_DOMAIN (the same precedence as
- * @kweli/workos-m2m's verifier). No compiled-in default, no fallback. Accepts a
- * bare host or an https origin; trims whitespace and any trailing slash.
+ * @kweli-mcp/workos-m2m's verifier). No compiled-in default, no fallback.
+ * Parsed by `normaliseAuthkitDomain` into an https origin: a bare host or an
+ * https origin is accepted, any path is dropped. Unset or unusable (http,
+ * another scheme, credentials, unparseable) is `null`, so the sign-in routes
+ * answer 503.
  */
 export function authkitDomain(env: {
   WORKOS_ISSUER?: string;
   WORKOS_AUTHKIT_DOMAIN?: string;
 }): string | null {
-  const raw = (env.WORKOS_ISSUER || env.WORKOS_AUTHKIT_DOMAIN || "").trim();
-  if (!raw) return null;
-  const origin = /^https?:\/\//.test(raw) ? raw : `https://${raw}`;
-  return origin.replace(/\/+$/, "");
+  try {
+    return normaliseAuthkitDomain(
+      (env.WORKOS_ISSUER || env.WORKOS_AUTHKIT_DOMAIN)?.trim() || undefined,
+    );
+  } catch {
+    return null;
+  }
 }
 
 export function requireAuthkitDomain(env: {
@@ -282,7 +291,8 @@ app.get("/callback", async (c) => {
   // Must be byte-identical to the one sent to /authorize, or WorkOS rejects
   // the exchange — hence the shared helper rather than a second literal.
   const redirectUri = callbackUrl(c.env, c.req.url);
-  const tokenRes = await fetch(`${requireAuthkitDomain(c.env)}/oauth2/token`, {
+  const tokenUrl = new URL("/oauth2/token", requireAuthkitDomain(c.env));
+  const tokenRes = await fetch(tokenUrl, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
