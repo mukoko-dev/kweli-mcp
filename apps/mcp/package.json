@@ -22,7 +22,7 @@
     "@modelcontextprotocol/sdk": "1.29.0",
     "agents": "^0.16.2",
     "bson": "7.2.0",
-    "hono": "^4.12.26",
+    "hono": "^4.13.7",
     "jose": "^6.2.3",
     "mongodb": "7.2.0",
     "zod": "^4.4.3",
