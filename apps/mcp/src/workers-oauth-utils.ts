@@ -2,7 +2,10 @@
 // Vendored from Cloudflare's `remote-mcp-authkit` demo (Apache-2.0).
 // OAuth helpers with CSRF protection and session-bound state validation.
 
-import type { AuthRequest, ClientInfo } from "@cloudflare/workers-oauth-provider";
+import type {
+  AuthRequest,
+  ClientInfo,
+} from "@cloudflare/workers-oauth-provider";
 
 export class OAuthError extends Error {
   constructor(
@@ -15,10 +18,13 @@ export class OAuthError extends Error {
   }
 
   toResponse(): Response {
-    return new Response(JSON.stringify({ error: this.code, error_description: this.description }), {
-      status: this.statusCode,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: this.code, error_description: this.description }),
+      {
+        status: this.statusCode,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 }
 
@@ -59,7 +65,8 @@ export function sanitizeUrl(url: string): string {
 
   for (let i = 0; i < normalized.length; i++) {
     const code = normalized.charCodeAt(i);
-    if ((code >= 0x00 && code <= 0x1f) || (code >= 0x7f && code <= 0x9f)) return "";
+    if ((code >= 0x00 && code <= 0x1f) || (code >= 0x7f && code <= 0x9f))
+      return "";
   }
 
   let parsedUrl: URL;
@@ -83,18 +90,27 @@ export function generateCSRFProtection(): CSRFProtectionResult {
   return { token, setCookie };
 }
 
-export function validateCSRFToken(formData: FormData, request: Request): ValidateCSRFResult {
+export function validateCSRFToken(
+  formData: FormData,
+  request: Request,
+): ValidateCSRFResult {
   const csrfCookieName = "__Host-CSRF_TOKEN";
   const tokenFromForm = formData.get("csrf_token");
 
   if (!tokenFromForm || typeof tokenFromForm !== "string") {
-    throw new OAuthError("invalid_request", "Missing CSRF token in form data", 400);
+    throw new OAuthError(
+      "invalid_request",
+      "Missing CSRF token in form data",
+      400,
+    );
   }
 
   const cookieHeader = request.headers.get("Cookie") || "";
   const cookies = cookieHeader.split(";").map((c) => c.trim());
   const csrfCookie = cookies.find((c) => c.startsWith(`${csrfCookieName}=`));
-  const tokenFromCookie = csrfCookie ? csrfCookie.substring(csrfCookieName.length + 1) : null;
+  const tokenFromCookie = csrfCookie
+    ? csrfCookie.substring(csrfCookieName.length + 1)
+    : null;
 
   if (!tokenFromCookie) {
     throw new OAuthError("invalid_request", "Missing CSRF token cookie", 400);
@@ -120,13 +136,17 @@ export async function createOAuthState(
   return { stateToken };
 }
 
-export async function bindStateToSession(stateToken: string): Promise<BindStateResult> {
+export async function bindStateToSession(
+  stateToken: string,
+): Promise<BindStateResult> {
   const consentedStateCookieName = "__Host-CONSENTED_STATE";
   const encoder = new TextEncoder();
   const data = encoder.encode(stateToken);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  const hashHex = hashArray
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 
   const setCookie = `${consentedStateCookieName}=${hashHex}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=600`;
   return { setCookie };
@@ -151,7 +171,9 @@ export async function validateOAuthState(
 
   const cookieHeader = request.headers.get("Cookie") || "";
   const cookies = cookieHeader.split(";").map((c) => c.trim());
-  const consentedStateCookie = cookies.find((c) => c.startsWith(`${consentedStateCookieName}=`));
+  const consentedStateCookie = cookies.find((c) =>
+    c.startsWith(`${consentedStateCookieName}=`),
+  );
   const consentedStateHash = consentedStateCookie
     ? consentedStateCookie.substring(consentedStateCookieName.length + 1)
     : null;
@@ -168,7 +190,9 @@ export async function validateOAuthState(
   const data = encoder.encode(stateFromQuery);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const stateHash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  const stateHash = hashArray
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 
   if (stateHash !== consentedStateHash) {
     throw new OAuthError(
@@ -196,7 +220,10 @@ export async function isClientApproved(
   clientId: string,
   cookieSecret: string,
 ): Promise<boolean> {
-  const approvedClients = await getApprovedClientsFromCookie(request, cookieSecret);
+  const approvedClients = await getApprovedClientsFromCookie(
+    request,
+    cookieSecret,
+  );
   return approvedClients?.includes(clientId) ?? false;
 }
 
@@ -208,8 +235,11 @@ export async function addApprovedClient(
   const approvedClientsCookieName = "__Host-APPROVED_CLIENTS";
   const THIRTY_DAYS_IN_SECONDS = 2592000;
 
-  const existingApprovedClients = (await getApprovedClientsFromCookie(request, cookieSecret)) || [];
-  const updatedApprovedClients = Array.from(new Set([...existingApprovedClients, clientId]));
+  const existingApprovedClients =
+    (await getApprovedClientsFromCookie(request, cookieSecret)) || [];
+  const updatedApprovedClients = Array.from(
+    new Set([...existingApprovedClients, clientId]),
+  );
 
   const payload = JSON.stringify(updatedApprovedClients);
   const signature = await signData(payload, cookieSecret);
@@ -226,21 +256,34 @@ export interface ApprovalDialogOptions {
   setCookie: string;
 }
 
-export function renderApprovalDialog(request: Request, options: ApprovalDialogOptions): Response {
+export function renderApprovalDialog(
+  request: Request,
+  options: ApprovalDialogOptions,
+): Response {
   const { client, server, state, csrfToken, setCookie } = options;
 
   const encodedState = btoa(JSON.stringify(state));
   const serverName = sanitizeText(server.name);
-  const clientName = client?.clientName ? sanitizeText(client.clientName) : "Unknown MCP Client";
-  const serverDescription = server.description ? sanitizeText(server.description) : "";
+  const clientName = client?.clientName
+    ? sanitizeText(client.clientName)
+    : "Unknown MCP Client";
+  const serverDescription = server.description
+    ? sanitizeText(server.description)
+    : "";
 
   const logoUrl = server.logo ? sanitizeText(sanitizeUrl(server.logo)) : "";
-  const clientUri = client?.clientUri ? sanitizeText(sanitizeUrl(client.clientUri)) : "";
-  const policyUri = client?.policyUri ? sanitizeText(sanitizeUrl(client.policyUri)) : "";
+  const clientUri = client?.clientUri
+    ? sanitizeText(sanitizeUrl(client.clientUri))
+    : "";
+  const policyUri = client?.policyUri
+    ? sanitizeText(sanitizeUrl(client.policyUri))
+    : "";
   const tosUri = client?.tosUri ? sanitizeText(sanitizeUrl(client.tosUri)) : "";
 
   const contacts =
-    client?.contacts && client.contacts.length > 0 ? sanitizeText(client.contacts.join(", ")) : "";
+    client?.contacts && client.contacts.length > 0
+      ? sanitizeText(client.contacts.join(", "))
+      : "";
 
   const redirectUris =
     client?.redirectUris && client.redirectUris.length > 0
@@ -336,10 +379,14 @@ async function getApprovedClientsFromCookie(
   if (!cookieHeader) return null;
 
   const cookies = cookieHeader.split(";").map((c) => c.trim());
-  const targetCookie = cookies.find((c) => c.startsWith(`${approvedClientsCookieName}=`));
+  const targetCookie = cookies.find((c) =>
+    c.startsWith(`${approvedClientsCookieName}=`),
+  );
   if (!targetCookie) return null;
 
-  const cookieValue = targetCookie.substring(approvedClientsCookieName.length + 1);
+  const cookieValue = targetCookie.substring(
+    approvedClientsCookieName.length + 1,
+  );
   const parts = cookieValue.split(".");
   if (parts.length !== 2) return null;
 
@@ -366,7 +413,11 @@ async function getApprovedClientsFromCookie(
 async function signData(data: string, secret: string): Promise<string> {
   const key = await importKey(secret);
   const enc = new TextEncoder();
-  const signatureBuffer = await crypto.subtle.sign("HMAC", key, enc.encode(data));
+  const signatureBuffer = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    enc.encode(data),
+  );
   return Array.from(new Uint8Array(signatureBuffer))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
@@ -383,7 +434,12 @@ async function verifySignature(
     const signatureBytes = new Uint8Array(
       signatureHex.match(/.{1,2}/g)!.map((byte) => Number.parseInt(byte, 16)),
     );
-    return await crypto.subtle.verify("HMAC", key, signatureBytes.buffer, enc.encode(data));
+    return await crypto.subtle.verify(
+      "HMAC",
+      key,
+      signatureBytes.buffer,
+      enc.encode(data),
+    );
   } catch {
     return false;
   }

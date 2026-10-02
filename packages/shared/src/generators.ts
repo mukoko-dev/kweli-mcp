@@ -41,8 +41,17 @@ async function readCapitalsFromGeo(
       .db(DB.places)
       .collection<CapitalDoc>(COLLECTION.placesGeo)
       .find(
-        { $or: [{ isCapital: true }, { capital: true }, { "properties.capital": "yes" }] },
-        { projection: { _id: 1, name: 1, geo: 1, centroid: 1, center: 1 }, limit },
+        {
+          $or: [
+            { isCapital: true },
+            { capital: true },
+            { "properties.capital": "yes" },
+          ],
+        },
+        {
+          projection: { _id: 1, name: 1, geo: 1, centroid: 1, center: 1 },
+          limit,
+        },
       )
       .toArray();
     const out: Array<{ name: string; center: [number, number] }> = [];
@@ -76,7 +85,9 @@ async function readCountrySettlements(
   const client = buildClient(uri);
   try {
     await client.connect();
-    const geo = client.db(DB.places).collection<SettlementDoc>(COLLECTION.placesGeo);
+    const geo = client
+      .db(DB.places)
+      .collection<SettlementDoc>(COLLECTION.placesGeo);
 
     let countryId = country.countryPlaceId;
     if (!countryId) {
@@ -84,14 +95,23 @@ async function readCountrySettlements(
         { geoType: "country", isoCode: country.countryIso?.toUpperCase() },
         { projection: { _id: 1 } },
       );
-      if (!countryDoc) throw new Error(`country not found in places.placesGeo: ${country.countryIso}`);
+      if (!countryDoc)
+        throw new Error(
+          `country not found in places.placesGeo: ${country.countryIso}`,
+        );
       countryId = countryDoc._id;
     }
 
     const docs = await geo
       .find(
-        { parentPlaceId: countryId, geoType: { $in: ["city", "town", "village"] } },
-        { projection: { _id: 1, name: 1, geo: 1, centroid: 1, center: 1 }, limit },
+        {
+          parentPlaceId: countryId,
+          geoType: { $in: ["city", "town", "village"] },
+        },
+        {
+          projection: { _id: 1, name: 1, geo: 1, centroid: 1, center: 1 },
+          limit,
+        },
       )
       .toArray();
 
@@ -118,9 +138,16 @@ export function settlementsToTasks(
   surfacePrefix: string,
 ): SeedTaskInput[] {
   return settlements.map((c) => ({
-    region: { kind: "point_radius" as const, center: c.center, radiusMeters: intent.radiusMeters },
+    region: {
+      kind: "point_radius" as const,
+      center: c.center,
+      radiusMeters: intent.radiusMeters,
+    },
     categories: intent.categories,
-    source: { ...intent.source, surface: intent.source.surface ?? `${surfacePrefix}:${c.name}` },
+    source: {
+      ...intent.source,
+      surface: intent.source.surface ?? `${surfacePrefix}:${c.name}`,
+    },
     priority: 1, // bulk ops sit below user-initiated work (§2)
   }));
 }
@@ -131,7 +158,9 @@ export async function expandBulkIntent(
 ): Promise<SeedTaskInput[]> {
   if (intent.intent === "country_settlements") {
     if (!intent.countryPlaceId && !intent.countryIso) {
-      throw new Error("country_settlements requires countryPlaceId or countryIso");
+      throw new Error(
+        "country_settlements requires countryPlaceId or countryIso",
+      );
     }
     const settlements = await readCountrySettlements(
       env.MONGODB_URI,

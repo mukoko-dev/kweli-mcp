@@ -181,7 +181,9 @@ describe("denyResponse", () => {
     const response = denyResponse(403, "organization not allowed");
     expect(response.status).toBe(403);
     expect(response.headers.get("WWW-Authenticate")).toContain("Bearer");
-    expect(await response.json()).toEqual({ error: "organization not allowed" });
+    expect(await response.json()).toEqual({
+      error: "organization not allowed",
+    });
   });
 });
 

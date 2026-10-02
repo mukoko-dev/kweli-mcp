@@ -17,7 +17,9 @@ describe("mcpBasePath", () => {
   it("normalizes a configured mount to a leading-slash, no-trailing-slash path", () => {
     expect(mcpBasePath({ MCP_BASE_PATH: "kweli-mcp" })).toBe("/kweli-mcp");
     expect(mcpBasePath({ MCP_BASE_PATH: "/mcp/" })).toBe("/mcp");
-    expect(mcpBasePath({ MCP_BASE_PATH: "/staging/mcp//" })).toBe("/staging/mcp");
+    expect(mcpBasePath({ MCP_BASE_PATH: "/staging/mcp//" })).toBe(
+      "/staging/mcp",
+    );
   });
 
   it("refuses a root mount", () => {
@@ -36,13 +38,22 @@ describe("the non-MCP surface is mounted under the base path", () => {
   it("serves health at the mounted path", async () => {
     const res = await get("/mcp/health");
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toMatchObject({ worker: "kweli-mcp", status: "ok" });
+    await expect(res.json()).resolves.toMatchObject({
+      worker: "kweli-mcp",
+      status: "ok",
+    });
   });
 
   it("claims nothing at the origin root", async () => {
     // Each of these is served by the Kweli web app on this hostname; answering
     // them here would mean the worker had been routed too broadly.
-    for (const path of ["/health", "/callback", "/authorize", "/icon.svg", "/"]) {
+    for (const path of [
+      "/health",
+      "/callback",
+      "/authorize",
+      "/icon.svg",
+      "/",
+    ]) {
       expect((await get(path)).status, path).toBe(404);
     }
   });

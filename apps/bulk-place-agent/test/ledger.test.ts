@@ -45,7 +45,9 @@ describe("migrations", () => {
   it("produce a tasks table carrying every column the ledger writes", async () => {
     // 0003's `ALTER TABLE tasks ADD COLUMN trace_id` had never been applied
     // anywhere before this test existed.
-    const { results } = await env.DB.prepare("PRAGMA table_info(tasks)").all<{ name: string }>();
+    const { results } = await env.DB.prepare("PRAGMA table_info(tasks)").all<{
+      name: string;
+    }>();
     const columns = results.map((r) => r.name);
 
     for (const column of [

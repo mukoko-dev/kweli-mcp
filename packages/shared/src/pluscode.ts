@@ -32,10 +32,17 @@ function computeLatitudePrecision(codeLength: number): number {
   if (codeLength <= PAIR_CODE_LENGTH) {
     return Math.pow(ENCODING_BASE, Math.floor(codeLength / -2 + 2));
   }
-  return Math.pow(ENCODING_BASE, -3) / Math.pow(GRID_ROWS, codeLength - PAIR_CODE_LENGTH);
+  return (
+    Math.pow(ENCODING_BASE, -3) /
+    Math.pow(GRID_ROWS, codeLength - PAIR_CODE_LENGTH)
+  );
 }
 
-function encodePairs(latitude: number, longitude: number, codeLength: number): string {
+function encodePairs(
+  latitude: number,
+  longitude: number,
+  codeLength: number,
+): string {
   let code = "";
   let adjustedLatitude = latitude + LATITUDE_MAX;
   let adjustedLongitude = longitude + LONGITUDE_MAX;
@@ -59,7 +66,11 @@ function encodePairs(latitude: number, longitude: number, codeLength: number): s
   return code;
 }
 
-function encodeGrid(latitude: number, longitude: number, codeLength: number): string {
+function encodeGrid(
+  latitude: number,
+  longitude: number,
+  codeLength: number,
+): string {
   let code = "";
   let latPlaceValue = GRID_SIZE_DEGREES;
   let lngPlaceValue = GRID_SIZE_DEGREES;
@@ -77,9 +88,15 @@ function encodeGrid(latitude: number, longitude: number, codeLength: number): st
   return code;
 }
 
-export function encodePlusCode(latitude: number, longitude: number, codeLength = 10): string {
+export function encodePlusCode(
+  latitude: number,
+  longitude: number,
+  codeLength = 10,
+): string {
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    throw new Error("encodePlusCode: latitude/longitude must be finite numbers");
+    throw new Error(
+      "encodePlusCode: latitude/longitude must be finite numbers",
+    );
   }
   let lat = clipLatitude(latitude);
   const lng = normalizeLongitude(longitude);

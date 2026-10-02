@@ -104,7 +104,9 @@ function toAnyValue(value: unknown): Record<string, unknown> {
   if (typeof value === "string") return { stringValue: value };
   if (typeof value === "boolean") return { boolValue: value };
   if (typeof value === "number") {
-    return Number.isInteger(value) ? { intValue: value } : { doubleValue: value };
+    return Number.isInteger(value)
+      ? { intValue: value }
+      : { doubleValue: value };
   }
   return { stringValue: JSON.stringify(value) };
 }
@@ -134,7 +136,9 @@ export class OtlpSink implements Sink {
           resource: {
             attributes: toKeyValues({
               "service.name": event.serviceName,
-              ...(event.instanceId ? { "service.instance.id": event.instanceId } : {}),
+              ...(event.instanceId
+                ? { "service.instance.id": event.instanceId }
+                : {}),
             }),
           },
           scopeLogs: [
@@ -150,8 +154,12 @@ export class OtlpSink implements Sink {
                   spanId: event.spanId,
                   attributes: toKeyValues({
                     ...event.attributes,
-                    ...(event.parentSpanId ? { "parent.span_id": event.parentSpanId } : {}),
-                    ...(event.durationMs !== null ? { "duration.ms": event.durationMs } : {}),
+                    ...(event.parentSpanId
+                      ? { "parent.span_id": event.parentSpanId }
+                      : {}),
+                    ...(event.durationMs !== null
+                      ? { "duration.ms": event.durationMs }
+                      : {}),
                     ...(event.status ? { "span.status": event.status } : {}),
                   }),
                 },

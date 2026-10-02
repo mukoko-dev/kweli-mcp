@@ -56,7 +56,8 @@ export async function resolveHierarchy(
   const res = await doFetch(url, {
     headers: { "user-agent": USER_AGENT, "accept-language": "en" },
   });
-  if (!res.ok) throw new Error(`Nominatim reverse ${res.status}: ${await res.text()}`);
+  if (!res.ok)
+    throw new Error(`Nominatim reverse ${res.status}: ${await res.text()}`);
 
   const data = (await res.json()) as NominatimReverseResult;
   const addr = data.address ?? {};
@@ -79,7 +80,10 @@ export async function resolveHierarchy(
   }
   if (!countryId && countryName) {
     const doc = await col.findOne<{ _id: string }>(
-      { geoType: "country", name: { $regex: new RegExp(`^${escapeRegex(countryName)}$`, "i") } },
+      {
+        geoType: "country",
+        name: { $regex: new RegExp(`^${escapeRegex(countryName)}$`, "i") },
+      },
       { projection: { _id: 1 } },
     );
     countryId = doc ? String(doc._id) : null;
@@ -93,7 +97,9 @@ export async function resolveHierarchy(
       name: { $regex: new RegExp(escapeRegex(provinceName), "i") },
     };
     if (countryId) filter.parentPlaceId = countryId;
-    const doc = await col.findOne<{ _id: string }>(filter, { projection: { _id: 1 } });
+    const doc = await col.findOne<{ _id: string }>(filter, {
+      projection: { _id: 1 },
+    });
     provinceId = doc ? String(doc._id) : null;
   }
 
@@ -104,11 +110,20 @@ export async function resolveHierarchy(
       geoType: { $in: ["city", "town", "village"] },
       name: { $regex: new RegExp(escapeRegex(cityName), "i") },
     };
-    const doc = await col.findOne<{ _id: string }>(filter, { projection: { _id: 1 } });
+    const doc = await col.findOne<{ _id: string }>(filter, {
+      projection: { _id: 1 },
+    });
     containedInPlaceId = doc ? String(doc._id) : provinceId;
   } else {
     containedInPlaceId = provinceId;
   }
 
-  return { countryId, provinceId, containedInPlaceId, countryName, provinceName, cityName };
+  return {
+    countryId,
+    provinceId,
+    containedInPlaceId,
+    countryName,
+    provinceName,
+    cityName,
+  };
 }

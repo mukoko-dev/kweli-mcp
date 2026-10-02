@@ -22,16 +22,24 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-async function requireM2M(request: Request, env: Env): Promise<Response | null> {
+async function requireM2M(
+  request: Request,
+  env: Env,
+): Promise<Response | null> {
   const cfg = m2mConfig(env);
   if (!cfg) return denyResponse(503, "auth not configured");
   const result = await verifyM2M(request, cfg);
-  if (!result.ok) return denyResponse(result.status ?? 401, result.error ?? "unauthorized");
+  if (!result.ok)
+    return denyResponse(result.status ?? 401, result.error ?? "unauthorized");
   return null;
 }
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<Response> {
     const url = new URL(request.url);
 
     if (url.pathname === "/health") {
@@ -53,7 +61,9 @@ export default {
         return denied;
       }
 
-      const body = (await request.json().catch(() => null)) as SinglePlaceRequest | null;
+      const body = (await request
+        .json()
+        .catch(() => null)) as SinglePlaceRequest | null;
       if (!body?.name) {
         tracer.warn("tasks.rejected", { reason: "name is required" });
         return json({ error: "name is required" }, 400);
@@ -62,7 +72,10 @@ export default {
       // One DO per request — there's no natural dedup key for a
       // human-named single place the way SeedTask has region+categories.
       const taskId = crypto.randomUUID();
-      const agent = await getAgentByName<Env, SinglePlaceAgent>(env.SINGLE_PLACE_AGENT, taskId);
+      const agent = await getAgentByName<Env, SinglePlaceAgent>(
+        env.SINGLE_PLACE_AGENT,
+        taskId,
+      );
 
       const result = await tracer.span(
         "single_place.submit",
