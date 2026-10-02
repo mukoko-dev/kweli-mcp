@@ -23,7 +23,11 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === "/health") {
-      return json({ ok: true, worker: "kweli-verification-review-agent", status: "stub" });
+      return json({
+        ok: true,
+        worker: "kweli-verification-review-agent",
+        status: "stub",
+      });
     }
 
     const match = url.pathname.match(/^\/claims\/([^/]+)\/draft-review$/);

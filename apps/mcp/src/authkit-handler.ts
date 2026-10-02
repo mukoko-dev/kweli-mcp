@@ -1,4 +1,7 @@
-import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provider";
+import type {
+  AuthRequest,
+  OAuthHelpers,
+} from "@cloudflare/workers-oauth-provider";
 import { Hono } from "hono";
 import * as jose from "jose";
 import { iconSvg } from "./icon";
@@ -26,11 +29,17 @@ function base64UrlEncode(buffer: ArrayBuffer): string {
     .replace(/=/g, "");
 }
 
-async function buildPkce(): Promise<{ codeVerifier: string; codeChallenge: string }> {
+async function buildPkce(): Promise<{
+  codeVerifier: string;
+  codeChallenge: string;
+}> {
   const codeVerifier = base64UrlEncode(
     crypto.getRandomValues(new Uint8Array(32)).buffer as ArrayBuffer,
   );
-  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(codeVerifier));
+  const hash = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(codeVerifier),
+  );
   const codeChallenge = base64UrlEncode(hash);
   return { codeVerifier, codeChallenge };
 }
@@ -40,9 +49,15 @@ function callbackUrl(env: Env, requestUrl: string): string {
   return new URL(`${mcpBasePath(env)}/callback`, requestUrl).href;
 }
 
-async function startWorkOSFlow(env: Env, stateToken: string, requestUrl: string): Promise<string> {
+async function startWorkOSFlow(
+  env: Env,
+  stateToken: string,
+  requestUrl: string,
+): Promise<string> {
   const { codeVerifier, codeChallenge } = await buildPkce();
-  await env.OAUTH_KV.put(`oauth:pkce:${stateToken}`, codeVerifier, { expirationTtl: 600 });
+  await env.OAUTH_KV.put(`oauth:pkce:${stateToken}`, codeVerifier, {
+    expirationTtl: 600,
+  });
 
   // Mount-relative, never origin-relative: on kweli.mukoko.com the origin root
   // is the Kweli web app, whose own `/callback` belongs to a *different* WorkOS
@@ -111,9 +126,12 @@ app.get("/authorize", async (c) => {
     return c.text("Invalid request", 400);
   }
 
-  if (await isClientApproved(c.req.raw, clientId, c.env.COOKIE_ENCRYPTION_KEY)) {
+  if (
+    await isClientApproved(c.req.raw, clientId, c.env.COOKIE_ENCRYPTION_KEY)
+  ) {
     const { stateToken } = await createOAuthState(oauthReqInfo, c.env.OAUTH_KV);
-    const { setCookie: sessionBindingCookie } = await bindStateToSession(stateToken);
+    const { setCookie: sessionBindingCookie } =
+      await bindStateToSession(stateToken);
     const location = await startWorkOSFlow(c.env, stateToken, c.req.url);
     return new Response(null, {
       status: 302,
@@ -164,8 +182,12 @@ app.post("/authorize", async (c) => {
       c.env.COOKIE_ENCRYPTION_KEY,
     );
 
-    const { stateToken } = await createOAuthState(state.oauthReqInfo, c.env.OAUTH_KV);
-    const { setCookie: sessionBindingCookie } = await bindStateToSession(stateToken);
+    const { stateToken } = await createOAuthState(
+      state.oauthReqInfo,
+      c.env.OAUTH_KV,
+    );
+    const { setCookie: sessionBindingCookie } =
+      await bindStateToSession(stateToken);
     const location = await startWorkOSFlow(c.env, stateToken, c.req.url);
 
     const headers = new Headers({ Location: location });
@@ -264,25 +286,39 @@ app.get("/callback", async (c) => {
   const userName =
     typeof (idClaims as { name?: unknown }).name === "string"
       ? (idClaims as { name: string }).name
-      : [rawGiven, rawFamily].filter((v) => typeof v === "string").join(" ") || undefined;
+      : [rawGiven, rawFamily].filter((v) => typeof v === "string").join(" ") ||
+        undefined;
 
-  const atClaims = jose.decodeJwt<{ permissions?: string[]; org_id?: string; scope?: string }>(
-    accessToken,
-  );
+  const atClaims = jose.decodeJwt<{
+    permissions?: string[];
+    org_id?: string;
+    scope?: string;
+  }>(accessToken);
   // The Connect app grants permissions as OAuth scopes, so the granted
   // permission lands in the space-delimited `scope` claim; also accept a
   // `permissions` array if present.
   const grantedScopes =
-    typeof atClaims.scope === "string" ? atClaims.scope.split(" ").filter(Boolean) : [];
-  const permissions: string[] = [...(atClaims.permissions ?? []), ...grantedScopes];
+    typeof atClaims.scope === "string"
+      ? atClaims.scope.split(" ").filter(Boolean)
+      : [];
+  const permissions: string[] = [
+    ...(atClaims.permissions ?? []),
+    ...grantedScopes,
+  ];
   const organizationId = atClaims.org_id;
 
   const allowedOrgs = (c.env.WORKOS_ALLOWED_ORG_IDS || "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  if (allowedOrgs.length > 0 && (!organizationId || !allowedOrgs.includes(organizationId))) {
-    return c.text("Your WorkOS organization is not authorized to use this MCP server.", 403);
+  if (
+    allowedOrgs.length > 0 &&
+    (!organizationId || !allowedOrgs.includes(organizationId))
+  ) {
+    return c.text(
+      "Your WorkOS organization is not authorized to use this MCP server.",
+      403,
+    );
   }
 
   const requiredPermission = (c.env.WORKOS_REQUIRED_PERMISSION || "").trim();

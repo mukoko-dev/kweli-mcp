@@ -12,10 +12,15 @@ const MAX_TILE_DEG = 0.25;
 
 const EARTH_RADIUS_M = 6_378_137;
 
-export function radiusBbox(centerLng: number, centerLat: number, radiusMeters: number): Bbox {
+export function radiusBbox(
+  centerLng: number,
+  centerLat: number,
+  radiusMeters: number,
+): Bbox {
   const dLat = (radiusMeters / EARTH_RADIUS_M) * (180 / Math.PI);
   const dLng =
-    (radiusMeters / (EARTH_RADIUS_M * Math.cos((centerLat * Math.PI) / 180))) * (180 / Math.PI);
+    (radiusMeters / (EARTH_RADIUS_M * Math.cos((centerLat * Math.PI) / 180))) *
+    (180 / Math.PI);
   return {
     s: centerLat - dLat,
     n: centerLat + dLat,

@@ -42,13 +42,19 @@ export async function fetchM2MToken(cfg: MintConfig): Promise<string> {
     body,
   });
   if (!resp.ok) {
-    throw new Error(`fetchM2MToken: WorkOS token endpoint returned ${resp.status}`);
+    throw new Error(
+      `fetchM2MToken: WorkOS token endpoint returned ${resp.status}`,
+    );
   }
-  const data = (await resp.json()) as { access_token: string; expires_in: number };
+  const data = (await resp.json()) as {
+    access_token: string;
+    expires_in: number;
+  };
 
   tokenCache.set(cfg.clientId, {
     token: data.access_token,
-    expiresAt: Date.now() + Math.max(0, data.expires_in - EXPIRY_SKEW_SECONDS) * 1000,
+    expiresAt:
+      Date.now() + Math.max(0, data.expires_in - EXPIRY_SKEW_SECONDS) * 1000,
   });
   return data.access_token;
 }

@@ -51,7 +51,10 @@ export function guardRegion(region: Region, bbox: Bbox): GuardResult {
   if (region.kind === "point_radius") {
     const [lng, lat] = region.center;
     if (!pointInside(bbox, lat, lng)) {
-      return { ok: false, reason: `point ${lat},${lng} is outside the ingestion boundary` };
+      return {
+        ok: false,
+        reason: `point ${lat},${lng} is outside the ingestion boundary`,
+      };
     }
     return { ok: true };
   }
@@ -65,7 +68,10 @@ export function guardRegion(region: Region, bbox: Bbox): GuardResult {
     ];
     const outside = corners.some(([lat, lng]) => !pointInside(bbox, lat, lng));
     if (outside) {
-      return { ok: false, reason: `bbox ${region.bbox.join(",")} extends outside the boundary` };
+      return {
+        ok: false,
+        reason: `bbox ${region.bbox.join(",")} extends outside the boundary`,
+      };
     }
     return { ok: true };
   }

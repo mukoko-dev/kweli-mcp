@@ -80,7 +80,13 @@ export class FundiAgent extends Agent<Env, FundiState> {
       instanceId: task.taskId,
       sink: buildSink({ env: this.env }),
       ...(task.traceId
-        ? { context: { traceId: task.traceId, spanId: newSpanId(), sampled: true } }
+        ? {
+            context: {
+              traceId: task.traceId,
+              spanId: newSpanId(),
+              sampled: true,
+            },
+          }
         : {}),
     });
 
@@ -93,7 +99,10 @@ export class FundiAgent extends Agent<Env, FundiState> {
     } catch (e) {
       const error = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
       const attempts = this.state.attempts + 1;
-      tracer.error("task.attempt_failed", e, { attempts, willRetry: attempts < MAX_ATTEMPTS });
+      tracer.error("task.attempt_failed", e, {
+        attempts,
+        willRetry: attempts < MAX_ATTEMPTS,
+      });
 
       if (attempts < MAX_ATTEMPTS) {
         this.setState({ ...this.state, status: "queued", attempts, error });

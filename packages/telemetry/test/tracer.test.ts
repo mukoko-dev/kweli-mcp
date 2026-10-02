@@ -7,7 +7,10 @@ import type { Sink } from "../src/types";
 const VALID = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
 
 function tracer(sink = new MemorySink()) {
-  return { sink, t: new Tracer({ serviceName: "test-agent", instanceId: "task-1", sink }) };
+  return {
+    sink,
+    t: new Tracer({ serviceName: "test-agent", instanceId: "task-1", sink }),
+  };
 }
 
 describe("log records", () => {
@@ -33,7 +36,12 @@ describe("log records", () => {
     t.info("i");
     t.warn("w");
     t.error("e");
-    expect(sink.events.map((e) => e.severity)).toEqual(["debug", "info", "warn", "error"]);
+    expect(sink.events.map((e) => e.severity)).toEqual([
+      "debug",
+      "info",
+      "warn",
+      "error",
+    ]);
   });
 
   it("extracts type and message from an Error", () => {
@@ -64,7 +72,11 @@ describe("log records", () => {
 
   it("merges tracer-level attributes into every event", () => {
     const sink = new MemorySink();
-    const t = new Tracer({ serviceName: "s", sink, attributes: { region: "zw" } });
+    const t = new Tracer({
+      serviceName: "s",
+      sink,
+      attributes: { region: "zw" },
+    });
     t.info("x", { extra: 1 });
     expect(sink.events[0]!.attributes).toEqual({ region: "zw", extra: 1 });
   });
@@ -168,7 +180,10 @@ describe("propagation", () => {
     const request = new Request("https://agent.test/tasks", {
       headers: a.outboundHeaders(),
     });
-    const b = Tracer.fromRequest(request, { serviceName: "agent", sink: sinkB });
+    const b = Tracer.fromRequest(request, {
+      serviceName: "agent",
+      sink: sinkB,
+    });
     b.info("handling");
 
     expect(sinkB.events[0]!.traceId).toBe(sinkA.events[0]!.traceId);
@@ -194,7 +209,10 @@ describe("resilience", () => {
         throw new Error("down");
       },
     };
-    const t = new Tracer({ serviceName: "s", sink: new MultiSink([exploding, healthy]) });
+    const t = new Tracer({
+      serviceName: "s",
+      sink: new MultiSink([exploding, healthy]),
+    });
 
     t.info("delivered");
     expect(healthy.events).toHaveLength(1);

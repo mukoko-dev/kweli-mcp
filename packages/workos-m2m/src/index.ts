@@ -1,2 +1,2 @@
-export * from './verify'
-export * from './mint'
+export * from "./verify";
+export * from "./mint";

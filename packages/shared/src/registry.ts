@@ -47,7 +47,10 @@ export class ProviderRegistry {
         .findOne({ providerKey });
       config = doc ?? null;
     } catch (e) {
-      console.error("registry lookup failed; using defaults", { providerKey, error: String(e) });
+      console.error("registry lookup failed; using defaults", {
+        providerKey,
+        error: String(e),
+      });
     }
     this.cache.set(providerKey, config);
     return config;

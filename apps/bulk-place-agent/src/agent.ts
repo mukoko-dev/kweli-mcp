@@ -84,7 +84,10 @@ async function resolveAdminBbox(
     seedRadiusMeters?: number;
     geoType?: string;
   }>({ _id: adminPlaceId as never });
-  if (!doc) throw new Error(`admin region not found in places.placesGeo: ${adminPlaceId}`);
+  if (!doc)
+    throw new Error(
+      `admin region not found in places.placesGeo: ${adminPlaceId}`,
+    );
 
   // Country/province docs are centroid-only; a default radius around a national
   // centroid would silently cover a tiny disk while claiming country coverage.
@@ -99,8 +102,10 @@ async function resolveAdminBbox(
     );
   }
 
-  const coords = doc.geo?.coordinates ?? doc.centroid?.coordinates ?? doc.center;
-  if (!coords) throw new Error(`places.placesGeo doc ${adminPlaceId} has no centroid`);
+  const coords =
+    doc.geo?.coordinates ?? doc.centroid?.coordinates ?? doc.center;
+  if (!coords)
+    throw new Error(`places.placesGeo doc ${adminPlaceId} has no centroid`);
   const radius = doc.seedRadiusMeters ?? 25_000;
   return { bbox: radiusBbox(coords[0], coords[1], radius), center: coords };
 }
@@ -110,8 +115,14 @@ function dataConfidence(feature: OsmFeature): number {
   return Math.min(0.3 + 0.05 * tagCount, 0.9);
 }
 
-export async function runTask(task: SeedTask, deps: AgentDeps): Promise<TaskResult> {
-  deps.tracer.info("task.start", { source: task.source.kind, region: task.region.kind });
+export async function runTask(
+  task: SeedTask,
+  deps: AgentDeps,
+): Promise<TaskResult> {
+  deps.tracer.info("task.start", {
+    source: task.source.kind,
+    region: task.region.kind,
+  });
 
   // Resolve the region to a bbox + containment hint.
   let bbox: Bbox;
@@ -123,7 +134,10 @@ export async function runTask(task: SeedTask, deps: AgentDeps): Promise<TaskResu
     const [s, w, n, e] = task.region.bbox;
     bbox = { s, w, n, e };
   } else {
-    const resolved = await resolveAdminBbox(deps.placesDb, task.region.adminPlaceId);
+    const resolved = await resolveAdminBbox(
+      deps.placesDb,
+      task.region.adminPlaceId,
+    );
     bbox = resolved.bbox;
     containedInPlaceId = task.region.adminPlaceId;
     // Deferred Africa guard (§2): admin centroid is only known now.
@@ -150,7 +164,8 @@ export async function runTask(task: SeedTask, deps: AgentDeps): Promise<TaskResu
     for (const f of features) {
       const key = osmKey(f);
       const prev = seen.get(key);
-      if (!prev || Object.keys(f.tags).length > Object.keys(prev.tags).length) seen.set(key, f);
+      if (!prev || Object.keys(f.tags).length > Object.keys(prev.tags).length)
+        seen.set(key, f);
     }
   }
   deps.tracer.info("overpass.done", { uniqueFeatures: seen.size });
@@ -180,17 +195,29 @@ export async function runTask(task: SeedTask, deps: AgentDeps): Promise<TaskResu
         ? existing
         : await generateDescription(deps.ai, feature, classification.name);
 
-    let hierarchy = { containedInPlaceId, countryId: null as string | null, provinceId: null as string | null };
+    let hierarchy = {
+      containedInPlaceId,
+      countryId: null as string | null,
+      provinceId: null as string | null,
+    };
     if (deps.nominatim) {
       try {
-        const resolved = await resolveHierarchy(deps.nominatim, deps.placesDb, feature.lat, feature.lon);
+        const resolved = await resolveHierarchy(
+          deps.nominatim,
+          deps.placesDb,
+          feature.lat,
+          feature.lon,
+        );
         hierarchy = {
           containedInPlaceId: resolved.containedInPlaceId ?? containedInPlaceId,
           countryId: resolved.countryId,
           provinceId: resolved.provinceId,
         };
       } catch (e) {
-        deps.tracer.warn("hierarchy.error", { osm: osmKey(feature), error: String(e) });
+        deps.tracer.warn("hierarchy.error", {
+          osm: osmKey(feature),
+          error: String(e),
+        });
       }
     }
 
@@ -220,12 +247,20 @@ export async function runTask(task: SeedTask, deps: AgentDeps): Promise<TaskResu
         entityCreated: outcome.entityCreated,
       });
     } catch (e) {
-      deps.tracer.warn("write.error", { osm: osmKey(feature), error: String(e) });
+      deps.tracer.warn("write.error", {
+        osm: osmKey(feature),
+        error: String(e),
+      });
       skipped++;
     }
   }
 
-  const result: TaskResult = { placesCreated, entitiesCreated, skipped, records };
+  const result: TaskResult = {
+    placesCreated,
+    entitiesCreated,
+    skipped,
+    records,
+  };
   deps.tracer.info("task.done", { ...result });
   return result;
 }

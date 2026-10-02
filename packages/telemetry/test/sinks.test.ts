@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { buildSink } from "../src/factory";
-import { ConsoleSink, D1Sink, MemorySink, MultiSink, OtlpSink } from "../src/sinks";
+import {
+  ConsoleSink,
+  D1Sink,
+  MemorySink,
+  MultiSink,
+  OtlpSink,
+} from "../src/sinks";
 import type { TelemetryEvent } from "../src/types";
 
 const EVENT: TelemetryEvent = {
@@ -48,7 +54,9 @@ describe("ConsoleSink", () => {
     sink.emit({ ...EVENT, severity: "warn" });
     sink.emit({ ...EVENT, severity: "error" });
 
-    expect(JSON.parse(log.mock.calls[0]![0] as string).name).toBe("place.written");
+    expect(JSON.parse(log.mock.calls[0]![0] as string).name).toBe(
+      "place.written",
+    );
     expect(warn).toHaveBeenCalledOnce();
     expect(error).toHaveBeenCalledOnce();
 
@@ -94,7 +102,9 @@ describe("D1Sink", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const db = {
       prepare: () => ({
-        bind: () => ({ run: async () => Promise.reject(new Error("no such table")) }),
+        bind: () => ({
+          run: async () => Promise.reject(new Error("no such table")),
+        }),
       }),
     };
     const pending: Promise<unknown>[] = [];
@@ -153,12 +163,13 @@ describe("OtlpSink", () => {
     });
 
     const pending: Promise<unknown>[] = [];
-    new OtlpSink({ endpoint: "https://otlp.test/v1/logs", waitUntil: (p) => pending.push(p) }).emit(
-      {
-        ...EVENT,
-        attributes: { s: "x", n: 3, f: 1.5, b: true, o: { nested: 1 } },
-      },
-    );
+    new OtlpSink({
+      endpoint: "https://otlp.test/v1/logs",
+      waitUntil: (p) => pending.push(p),
+    }).emit({
+      ...EVENT,
+      attributes: { s: "x", n: 3, f: 1.5, b: true, o: { nested: 1 } },
+    });
     await Promise.all(pending);
 
     const attrs = seen[0].resourceLogs[0].scopeLogs[0].logRecords[0].attributes;
@@ -174,10 +185,15 @@ describe("OtlpSink", () => {
   });
 
   it("never surfaces a backend outage", async () => {
-    vi.stubGlobal("fetch", async () => Promise.reject(new Error("network down")));
+    vi.stubGlobal("fetch", async () =>
+      Promise.reject(new Error("network down")),
+    );
     const pending: Promise<unknown>[] = [];
     expect(() =>
-      new OtlpSink({ endpoint: "https://otlp.test", waitUntil: (p) => pending.push(p) }).emit(EVENT),
+      new OtlpSink({
+        endpoint: "https://otlp.test",
+        waitUntil: (p) => pending.push(p),
+      }).emit(EVENT),
     ).not.toThrow();
     await expect(Promise.all(pending)).resolves.toBeDefined();
     vi.unstubAllGlobals();
@@ -208,13 +224,15 @@ describe("buildSink", () => {
 
   it("honours the D1 kill switch without removing the binding", () => {
     const { db } = fakeD1();
-    expect(buildSink({ env: { DB: db, TELEMETRY_D1_DISABLED: "true" } })).toBeInstanceOf(
-      ConsoleSink,
-    );
+    expect(
+      buildSink({ env: { DB: db, TELEMETRY_D1_DISABLED: "true" } }),
+    ).toBeInstanceOf(ConsoleSink);
   });
 
   it("adds the OTLP sink when an endpoint is set", () => {
-    expect(buildSink({ env: { OTLP_ENDPOINT: "https://otlp.test" } })).toBeInstanceOf(MultiSink);
+    expect(
+      buildSink({ env: { OTLP_ENDPOINT: "https://otlp.test" } }),
+    ).toBeInstanceOf(MultiSink);
   });
 
   it("parses OTLP headers, tolerating values that contain '='", () => {

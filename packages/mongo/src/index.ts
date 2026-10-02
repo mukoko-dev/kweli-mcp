@@ -1,2 +1,2 @@
-export * from './mongo'
-export * from './verification-tiers'
+export * from "./mongo";
+export * from "./verification-tiers";

@@ -57,8 +57,11 @@ export class Tracer {
     this.instanceId = options.instanceId ?? null;
     this.sink = options.sink ?? new ConsoleSink();
     this.baseAttributes = options.attributes ?? {};
-    this.context =
-      options.context ?? { traceId: newTraceId(), spanId: newSpanId(), sampled: true };
+    this.context = options.context ?? {
+      traceId: newTraceId(),
+      spanId: newSpanId(),
+      sampled: true,
+    };
     this.parentSpanId = options.parentSpanId ?? null;
   }
 
@@ -92,8 +95,14 @@ export class Tracer {
   }
 
   /** A fetch that propagates trace context. Prefer this over bare `fetch`. */
-  async fetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
-    return fetch(input, { ...init, headers: this.outboundHeaders(init.headers) });
+  async fetch(
+    input: RequestInfo | URL,
+    init: RequestInit = {},
+  ): Promise<Response> {
+    return fetch(input, {
+      ...init,
+      headers: this.outboundHeaders(init.headers),
+    });
   }
 
   debug(name: string, attributes?: Attributes): void {
@@ -135,12 +144,21 @@ export class Tracer {
       span.emitSpan(name, Date.now() - startedAt, "ok", {});
       return result;
     } catch (error) {
-      span.emitSpan(name, Date.now() - startedAt, "error", errorAttributes(error));
+      span.emitSpan(
+        name,
+        Date.now() - startedAt,
+        "error",
+        errorAttributes(error),
+      );
       throw error;
     }
   }
 
-  private emit(severity: Severity, name: string, attributes: Attributes = {}): void {
+  private emit(
+    severity: Severity,
+    name: string,
+    attributes: Attributes = {},
+  ): void {
     this.write({
       timestamp: new Date().toISOString(),
       traceId: this.context.traceId,

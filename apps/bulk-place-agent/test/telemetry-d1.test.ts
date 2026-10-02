@@ -43,7 +43,9 @@ describe("D1Sink against real SQLite", () => {
     sink.emit(EVENT);
     await settle();
 
-    const row = await env.DB.prepare("SELECT * FROM agent_events").first<Record<string, unknown>>();
+    const row = await env.DB.prepare("SELECT * FROM agent_events").first<
+      Record<string, unknown>
+    >();
 
     expect(row).toMatchObject({
       timestamp: EVENT.timestamp,
@@ -56,7 +58,9 @@ describe("D1Sink against real SQLite", () => {
       duration_ms: 120,
       status: "ok",
     });
-    expect(JSON.parse(row!.attributes_json as string)).toEqual({ placeId: "p1" });
+    expect(JSON.parse(row!.attributes_json as string)).toEqual({
+      placeId: "p1",
+    });
   });
 
   it("stores a null parent span for a root span", async () => {
@@ -64,7 +68,9 @@ describe("D1Sink against real SQLite", () => {
     sink.emit(EVENT);
     await settle();
 
-    const row = await env.DB.prepare("SELECT parent_span_id FROM agent_events").first<{
+    const row = await env.DB.prepare(
+      "SELECT parent_span_id FROM agent_events",
+    ).first<{
       parent_span_id: string | null;
     }>();
     expect(row!.parent_span_id).toBeNull();
@@ -106,10 +112,30 @@ describe("D1Sink against real SQLite", () => {
     const { sink, settle } = sinkWithPending();
     const traceId = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-    sink.emit({ ...EVENT, traceId, serviceName: "kweli-mcp", name: "tool.request_place" });
-    sink.emit({ ...EVENT, traceId, serviceName: "kweli-single-place-agent", name: "submit" });
-    sink.emit({ ...EVENT, traceId, serviceName: "kweli-single-place-agent", name: "mongo.write" });
-    sink.emit({ ...EVENT, traceId: "b".repeat(32), serviceName: "kweli-mcp", name: "unrelated" });
+    sink.emit({
+      ...EVENT,
+      traceId,
+      serviceName: "kweli-mcp",
+      name: "tool.request_place",
+    });
+    sink.emit({
+      ...EVENT,
+      traceId,
+      serviceName: "kweli-single-place-agent",
+      name: "submit",
+    });
+    sink.emit({
+      ...EVENT,
+      traceId,
+      serviceName: "kweli-single-place-agent",
+      name: "mongo.write",
+    });
+    sink.emit({
+      ...EVENT,
+      traceId: "b".repeat(32),
+      serviceName: "kweli-mcp",
+      name: "unrelated",
+    });
     await settle();
 
     const { results } = await env.DB.prepare(
@@ -118,7 +144,11 @@ describe("D1Sink against real SQLite", () => {
       .bind(traceId)
       .all<{ service_name: string; name: string }>();
 
-    expect(results.map((r) => r.name)).toEqual(["mongo.write", "submit", "tool.request_place"]);
+    expect(results.map((r) => r.name)).toEqual([
+      "mongo.write",
+      "submit",
+      "tool.request_place",
+    ]);
     expect(new Set(results.map((r) => r.service_name)).size).toBe(2);
   });
 
@@ -130,7 +160,17 @@ describe("D1Sink against real SQLite", () => {
          categories_json, task_json, created_at, trace_id)
        VALUES (?,?,?,?,?,?,?,?,?)`,
     )
-      .bind("task-join", "seed_region", "done", 1, "{}", "[]", "{}", EVENT.timestamp, traceId)
+      .bind(
+        "task-join",
+        "seed_region",
+        "done",
+        1,
+        "{}",
+        "[]",
+        "{}",
+        EVENT.timestamp,
+        traceId,
+      )
       .run();
 
     const { sink, settle } = sinkWithPending();
