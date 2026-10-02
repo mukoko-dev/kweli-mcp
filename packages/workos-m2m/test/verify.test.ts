@@ -20,10 +20,12 @@ let issuer: FakeIssuer;
 let restore: () => void;
 
 beforeEach(async () => {
-  // A distinct domain per test defeats verify.ts's module-level JWKS cache,
-  // which would otherwise leak one test's signing key into the next.
+  // A distinct origin per test defeats verify.ts's module-level JWKS cache,
+  // which would otherwise leak one test's signing key into the next. It has
+  // to differ in the host: the issuer is normalised to its origin, so a path
+  // suffix would no longer make it distinct.
   issuer = await createFakeIssuer(
-    `${FAKE_DOMAIN}/${Math.random().toString(36).slice(2)}`,
+    FAKE_DOMAIN.replace("://", `://t${Math.random().toString(36).slice(2)}.`),
     CLIENT_ID,
   );
   restore = stubIssuerFetch(issuer);
@@ -54,6 +56,32 @@ describe("m2mConfig", () => {
       WORKOS_M2M_CLIENT_ID: CLIENT_ID,
     });
     expect(c!.authkitDomain).toBe("https://identity.test");
+  });
+
+  it("normalises the issuer to its https origin", () => {
+    const at = (v: string) =>
+      m2mConfig({ WORKOS_ISSUER: v, WORKOS_M2M_CLIENT_ID: CLIENT_ID })
+        ?.authkitDomain;
+    expect(at("https://identity.test")).toBe("https://identity.test");
+    expect(at("identity.test")).toBe("https://identity.test");
+    expect(at("HTTPS://Identity.Test")).toBe("https://identity.test");
+    expect(at("https://identity.test/x/y?z=1#f")).toBe("https://identity.test");
+  });
+
+  it("treats an issuer that is not an https origin as unconfigured", () => {
+    // Fail closed: callers answer 503 rather than verify against it.
+    for (const bad of [
+      "http://identity.test",
+      "javascript://identity.test",
+      "https://user:pass@identity.test",
+      "user@identity.test",
+      "https://",
+    ]) {
+      expect(
+        m2mConfig({ WORKOS_ISSUER: bad, WORKOS_M2M_CLIENT_ID: CLIENT_ID }),
+        bad,
+      ).toBeNull();
+    }
   });
 
   it("accepts several audiences and org ids, comma-separated", () => {
@@ -140,6 +168,28 @@ describe("verifyM2M — rejecting a bad token", () => {
   it("rejects a token claiming a different issuer", async () => {
     const token = await issuer.sign({ iss: "https://evil.test" });
     expect((await verifyM2M(bearerRequest(token), cfg())).ok).toBe(false);
+  });
+
+  it("binds iss to the normalised origin — exact match, never a prefix", async () => {
+    // The secret may be written with a trailing slash or in mixed case; the
+    // token's iss must still equal the origin exactly.
+    const loose = cfg({
+      WORKOS_AUTHKIT_DOMAIN: `${issuer.domain.toUpperCase()}/`,
+    });
+    expect(loose.authkitDomain).toBe(issuer.domain);
+    expect(
+      (await verifyM2M(bearerRequest(await issuer.sign()), loose)).ok,
+    ).toBe(true);
+    for (const iss of [
+      `${issuer.domain}.evil.test`,
+      `${issuer.domain}/`,
+      issuer.domain.replace("https:", "http:"),
+    ]) {
+      const token = await issuer.sign({ iss });
+      expect((await verifyM2M(bearerRequest(token), cfg())).ok, iss).toBe(
+        false,
+      );
+    }
   });
 
   it("rejects an expired token", async () => {
