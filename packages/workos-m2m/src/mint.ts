@@ -5,8 +5,10 @@
 // app's own secrets — never shared inline with other credentials). Pair with
 // `verify.ts` on the agent side.
 
+import { normaliseAuthkitDomain } from "./issuer";
+
 export interface MintConfig {
-  authkitDomain: string; // e.g. https://your-env.authkit.app (no trailing slash)
+  authkitDomain: string; // a bare host or https origin; parsed by normaliseAuthkitDomain
   clientId: string;
   clientSecret: string;
   organizationId?: string; // pin the grant to a specific org (bulk-place-agent's check)
@@ -36,7 +38,11 @@ export async function fetchM2MToken(cfg: MintConfig): Promise<string> {
   });
   if (cfg.organizationId) body.set("organization_id", cfg.organizationId);
 
-  const resp = await fetch(`${cfg.authkitDomain}/oauth2/token`, {
+  const tokenUrl = new URL(
+    "/oauth2/token",
+    normaliseAuthkitDomain(cfg.authkitDomain),
+  );
+  const resp = await fetch(tokenUrl, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body,
