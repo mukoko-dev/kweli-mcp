@@ -5,6 +5,7 @@ import type {
 import { normaliseAuthkitDomain } from "@kweli-mcp/workos-m2m";
 import { Hono } from "hono";
 import * as jose from "jose";
+import { type CallbackClaims, verifyCallbackTokens } from "./callback-tokens";
 import { iconSvg } from "./icon";
 import { landingHtml } from "./landing";
 import { mcpBasePath } from "./paths";
@@ -319,29 +320,48 @@ app.get("/callback", async (c) => {
   const idToken = tokens.id_token ?? "";
   const refreshToken = tokens.refresh_token ?? "";
 
-  const idClaims = idToken ? jose.decodeJwt(idToken) : {};
-  const userId = String((idClaims as { sub?: unknown }).sub ?? "");
+  // Verify, never just decode: signature against the AuthKit JWKS, `iss` bound
+  // to the configured AuthKit issuer, the ID token's `aud` bound to our client
+  // ID, and expiry. The access token's org and permissions feed the gates
+  // below, so it is verified too. Any failure fails closed.
+  let idClaims: CallbackClaims["id"];
+  let atClaims: CallbackClaims["access"];
+  try {
+    const issuer = requireAuthkitDomain(c.env);
+    const jwks = jose.createRemoteJWKSet(new URL("/oauth2/jwks", issuer));
+    const verified = await verifyCallbackTokens(
+      { idToken, accessToken },
+      jwks,
+      {
+        issuer,
+        clientId: c.env.WORKOS_CLIENT_ID,
+      },
+    );
+    idClaims = verified.id;
+    atClaims = verified.access;
+  } catch (error) {
+    console.error("WorkOS token verification failed:", error);
+    return c.text(
+      "Sign-in failed: the identity token could not be verified",
+      400,
+    );
+  }
+
+  const userId = typeof idClaims.sub === "string" ? idClaims.sub : "";
   if (!userId) {
     return c.text("Could not determine user identity from token", 400);
   }
 
   const userEmail =
-    typeof (idClaims as { email?: unknown }).email === "string"
-      ? (idClaims as { email: string }).email
-      : undefined;
-  const rawGiven = (idClaims as { given_name?: unknown }).given_name;
-  const rawFamily = (idClaims as { family_name?: unknown }).family_name;
+    typeof idClaims.email === "string" ? idClaims.email : undefined;
+  const rawGiven = idClaims.given_name;
+  const rawFamily = idClaims.family_name;
   const userName =
-    typeof (idClaims as { name?: unknown }).name === "string"
-      ? (idClaims as { name: string }).name
+    typeof idClaims.name === "string"
+      ? idClaims.name
       : [rawGiven, rawFamily].filter((v) => typeof v === "string").join(" ") ||
         undefined;
 
-  const atClaims = jose.decodeJwt<{
-    permissions?: string[];
-    org_id?: string;
-    scope?: string;
-  }>(accessToken);
   // The Connect app grants permissions as OAuth scopes, so the granted
   // permission lands in the space-delimited `scope` claim; also accept a
   // `permissions` array if present.

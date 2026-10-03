@@ -22,7 +22,7 @@
     "@modelcontextprotocol/sdk": "1.29.0",
     "agents": "^0.16.2",
     "bson": "7.2.0",
-    "hono": "^4.12.26",
+    "hono": "^4.13.7",
     "jose": "^6.2.3",
     "mongodb": "7.2.0",
     "zod": "^4.4.3",
@@ -31,7 +31,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260801.1",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.6",
+    "vitest": "^4.1.11",
     "wrangler": "^4.92.0",
     "@types/node": "^25.9.0"
   }
