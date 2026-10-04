@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# Read-only token: this job only checks out, installs and tests.
+permissions:
+  contents: read
+
 jobs:
   test-and-build:
     name: Type-check, test, build
