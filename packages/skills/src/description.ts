@@ -1,5 +1,6 @@
-// Skill: generate_description (§4.6 + §6). Workers AI (Kimi via the shamwari AI
-// Gateway), with the v10 guard carried forward: clean-or-absent, never a hedge.
+// Skill: generate_description (§4.6 + §6). Workers AI via the `fundi` AI
+// Gateway (background agents), with the v10 guard carried forward:
+// clean-or-absent, never a hedge.
 //
 // This runs ONLY in the autonomous queue/app-surface path — never when a
 // platform-team LLM is already driving Fundi over MCP (no point running an AI to
@@ -86,11 +87,84 @@ function buildContext(feature: OsmFeature, placeName: string): string {
   return facts.join("\n");
 }
 
-// Workers AI binding + model, optionally routed through an AI Gateway (shamwari).
+// Workers AI binding + model, routed through an AI Gateway (`fundi` — the
+// background agents gateway: authenticated, no guardrails, no cache).
 export interface AiConfig {
   binding: Ai;
+  // Direct Workers AI model id. Used on its own, or as the fallback when the
+  // dynamic route below is not configured on the gateway yet.
   model: string;
+  // AI Gateway dynamic route (e.g. "dynamic/places"). Preferred when set: the
+  // model choice then lives in gateway configuration, not in this code.
+  route?: string;
   gateway?: string;
+  // Attribution for the gateway log: who called and for which job. Scalars
+  // only, and never content — the gateway keeps these on every log row.
+  metadata?: Record<string, string | number | boolean>;
+  // Daily request budget. Called once before EVERY model call; false means the
+  // day's budget is spent (or cannot be checked) and no call is made.
+  reserve?: () => Promise<boolean>;
+  // Tracing hook: wraps one model call in a metadata-only `chat` span. Kept as
+  // an injected function so this module stays free of `cloudflare:workers`
+  // (the guard tests run in plain Node).
+  span?: <T>(model: string, fn: () => Promise<T>) => Promise<T>;
+}
+
+// The day's AI budget is spent. Not a failure of the place: generation stops,
+// the place is written without a description and stays re-enrichable.
+export class AiBudgetExceededError extends Error {}
+
+// Gateway options for the binding's third argument. Exported for the tests:
+// a gateway passed anywhere else is silently ignored by the binding.
+export function gatewayOptions(
+  cfg: Pick<AiConfig, "gateway" | "metadata">,
+): { gateway: Record<string, unknown> } | undefined {
+  if (!cfg.gateway) return undefined;
+  return {
+    gateway: {
+      id: cfg.gateway,
+      // Every prompt is a distinct place; a cache would never hit.
+      skipCache: true,
+      ...(cfg.metadata ? { metadata: cfg.metadata } : {}),
+    },
+  };
+}
+
+// A dynamic route that does not exist on the gateway fails with code 7003
+// ("Dynamic route 'places' not found"). That is configuration, not the place.
+export function isMissingRoute(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /7003|dynamic route .* not found/i.test(msg);
+}
+
+// Per isolate: once a route is known to be missing, go straight to the direct
+// model for a while instead of paying a failed call before every description.
+const ROUTE_RETRY_MS = 10 * 60 * 1000;
+const routeMissingUntil = new Map<string, number>();
+
+export function resetRouteCache(): void {
+  routeMissingUntil.clear();
+}
+
+// Qwen3 reasons before answering unless told not to; for 2-3 sentences of
+// prose that hidden reasoning is pure cost (measured: 242 → 25 completion
+// tokens on a trivial call). Harmless to other models.
+const NO_THINK = " /no_think";
+
+// Workers AI models answer `{response}`; dynamic routes and OpenAI-compatible
+// models answer the chat-completions shape. Strip any (empty) think block.
+export function extractText(out: unknown): string {
+  const o = (out ?? {}) as {
+    response?: unknown;
+    choices?: Array<{ message?: { content?: unknown } }>;
+  };
+  // First non-empty string wins: some models fill both fields, and an empty
+  // `response` must not hide the chat-completions content.
+  const text =
+    [o.response, o.choices?.[0]?.message?.content].find(
+      (v): v is string => typeof v === "string" && v.trim().length > 0,
+    ) ?? "";
+  return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 }
 
 async function runModel(
@@ -98,21 +172,40 @@ async function runModel(
   system: string,
   user: string,
 ): Promise<string> {
-  // Through an AI Gateway the model id is provider-prefixed
-  // ("workers-ai/@cf/…"), which is not a static AiModels key — hence the casts.
-  const options = cfg.gateway ? { gateway: { id: cfg.gateway } } : undefined;
-  const out = (await cfg.binding.run(
-    cfg.model as never,
-    {
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      max_tokens: 256,
-    } as never,
-    options as never,
-  )) as { response?: string };
-  return (out.response ?? "").trim();
+  const call = async (model: string) => {
+    if (cfg.reserve && !(await cfg.reserve())) {
+      throw new AiBudgetExceededError("daily AI request budget spent");
+    }
+    // A dynamic route or provider-prefixed id is not a static AiModels key —
+    // hence the casts.
+    const run = () =>
+      cfg.binding.run(
+        model as never,
+        {
+          messages: [
+            { role: "system", content: system + NO_THINK },
+            { role: "user", content: user },
+          ],
+          max_tokens: 256,
+        } as never,
+        gatewayOptions(cfg) as never,
+      );
+    return extractText(cfg.span ? await cfg.span(model, run) : await run());
+  };
+
+  const route = cfg.route;
+  if (route && (routeMissingUntil.get(route) ?? 0) <= Date.now()) {
+    try {
+      return await call(route);
+    } catch (e) {
+      if (!isMissingRoute(e)) throw e;
+      routeMissingUntil.set(route, Date.now() + ROUTE_RETRY_MS);
+      console.warn("generate_description: dynamic route missing; using model", {
+        route,
+      });
+    }
+  }
+  return call(cfg.model);
 }
 
 // Returns a clean description, or null. Never returns a hedge.
@@ -132,6 +225,12 @@ export async function generateDescription(
     const second = await runModel(cfg, BASE_PROMPT + STRICT_SUFFIX, context);
     if (!isHedge(second)) return second.trim();
   } catch (e) {
+    if (e instanceof AiBudgetExceededError) {
+      console.warn("generate_description skipped: daily AI budget spent", {
+        id: feature.id,
+      });
+      return null;
+    }
     console.error("generate_description failed", {
       id: feature.id,
       error: String(e),

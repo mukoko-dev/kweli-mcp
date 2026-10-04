@@ -7,6 +7,7 @@
 import { Agent } from "agents";
 import type { MongoClient } from "mongodb";
 import { buildDeps, runTask } from "./agent";
+import { invokeAgentSpan } from "./tracing";
 import { buildSink, newSpanId, Tracer } from "@kweli-mcp/telemetry";
 import { markProcessing, markResult, markStatus } from "@kweli-mcp/shared";
 import { buildClient } from "@kweli-mcp/mongo";
@@ -93,7 +94,10 @@ export class FundiAgent extends Agent<Env, FundiState> {
     try {
       const client = await this.getMongo();
       const deps = await buildDeps(client, this.env, tracer);
-      const result = await runTask(task, deps);
+      // One metadata-only `invoke_agent` span per task attempt.
+      const result = await invokeAgentSpan(task.taskId, () =>
+        runTask(task, deps),
+      );
       this.setState({ ...this.state, status: "done", result });
       await markResult(this.env, task.taskId, "done", result);
     } catch (e) {

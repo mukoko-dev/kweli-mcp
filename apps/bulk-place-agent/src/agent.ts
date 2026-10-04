@@ -5,6 +5,8 @@
 
 import type { Db, MongoClient } from "mongodb";
 import type { Tracer } from "@kweli-mcp/telemetry";
+import { reserveAiRequest } from "./ai-budget";
+import { AGENT_NAME, chatSpanFor } from "./tracing";
 import { type Bbox, boundaryBbox, guardRegion } from "@kweli-mcp/shared";
 import { DB } from "@kweli-mcp/mongo";
 import { encodePlusCode } from "@kweli-mcp/shared";
@@ -49,13 +51,20 @@ export async function buildDeps(
   const w3wEndpoint = await registry.endpoint("what3words");
   const w3wKey = await registry.credential("what3words");
 
-  // generate_description runs on Workers AI (Kimi by default), routed through
-  // the shamwari AI Gateway. No API key — the AI binding carries access.
+  // generate_description runs on Workers AI through the `fundi` AI Gateway —
+  // the gateway for background agents and pipelines (no guardrails, no
+  // cache). Consumer-triggered chat stays on Shamwari; this is not that. No
+  // API key — the AI binding is pre-authenticated, even against an
+  // authenticated gateway.
+  //
+  // FUNDI_AI_ROUTE (a gateway dynamic route) is preferred when set; the model
+  // below is the direct fallback, used while the route is not configured.
   const aiModel = await registry.model(
     "workers_ai",
-    env.FUNDI_AI_MODEL ?? "workers-ai/@cf/moonshotai/kimi-k2.6",
+    env.FUNDI_AI_MODEL ?? "@cf/qwen/qwen3-30b-a3b-fp8",
   );
-  const aiGateway = env.FUNDI_AI_GATEWAY ?? "shamwari";
+  const aiRoute = env.FUNDI_AI_ROUTE || undefined;
+  const aiGateway = env.FUNDI_AI_GATEWAY ?? "fundi";
 
   return {
     client,
@@ -64,7 +73,16 @@ export async function buildDeps(
     registry,
     overpass: { endpoint: overpassEndpoint },
     nominatim: nominatimEndpoint ? { endpoint: nominatimEndpoint } : null,
-    ai: env.AI ? { binding: env.AI, model: aiModel, gateway: aiGateway } : null,
+    ai: env.AI
+      ? {
+          binding: env.AI,
+          model: aiModel,
+          route: aiRoute,
+          gateway: aiGateway,
+          metadata: { worker: AGENT_NAME, job: "generate_description" },
+          reserve: () => reserveAiRequest(env),
+        }
+      : null,
     what3words: w3wKey ? { endpoint: w3wEndpoint, apiKey: w3wKey } : null,
     wikidata: wikidataEndpoint ? { endpoint: wikidataEndpoint } : null,
     boundary: boundaryBbox(strEnv),
@@ -148,6 +166,9 @@ export async function runTask(
     if (!guard.ok) throw new Error(`boundary guard: ${guard.reason}`);
   }
 
+  // Every model call in this task gets a metadata-only `chat` span.
+  const ai = deps.ai ? { ...deps.ai, span: chatSpanFor(task.taskId) } : null;
+
   const tiles = tileBbox(bbox);
   deps.tracer.info("tile.done", { tiles: tiles.length });
 
@@ -188,12 +209,15 @@ export async function runTask(
       enrichWikidata(deps.wikidata, feature.tags.wikidata),
     ]);
 
-    // LLM only when OSM has no usable description (§4 judgment point).
+    // LLM only when OSM has no usable description (§4 judgment point), and
+    // only once per place: a re-seeded region keeps the description the place
+    // already carries instead of paying the model to write it again.
     const existing = feature.tags.description;
     const description =
       existing && existing.length >= 20
         ? existing
-        : await generateDescription(deps.ai, feature, classification.name);
+        : ((await storedDescription(deps.placesDb, feature)) ??
+          (await generateDescription(ai, feature, classification.name)));
 
     let hierarchy = {
       containedInPlaceId,
@@ -263,6 +287,30 @@ export async function runTask(
   };
   deps.tracer.info("task.done", { ...result });
   return result;
+}
+
+// The description a previous run already wrote for this OSM feature, if any.
+// Same filter as the place upsert in write-records, so it hits the same index.
+async function storedDescription(
+  placesDb: Db,
+  feature: OsmFeature,
+): Promise<string | null> {
+  try {
+    const doc = await placesDb.collection("places").findOne<{
+      content?: { description?: unknown };
+    }>(
+      {
+        "sourceProvenance.legacyId": osmKey(feature),
+        "sourceProvenance.dataOrigin": "osm",
+      },
+      { projection: { _id: 0, "content.description": 1 } },
+    );
+    const d = doc?.content?.description;
+    return typeof d === "string" && d.length >= 20 ? d : null;
+  } catch {
+    // A failed lookup falls through to generation, as before this check.
+    return null;
+  }
 }
 
 function encodePlusCodeSafe(feature: OsmFeature): string {
