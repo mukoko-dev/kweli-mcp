@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "STUB \u2014 assists (never replaces) the human review of entity.representativeClaims. No real evidence-summary or anomaly-flagging logic yet; see agent-do.ts's TODO. Never writes bundu.verificationTier \u2014 Kweli's own admin console remains the sole writer.",
+  "description": "STUB — assists (never replaces) the human review of entity.representativeClaims. No real evidence-summary or anomaly-flagging logic yet; see agent-do.ts's TODO. Never writes bundu.verificationTier — Kweli's own admin console remains the sole writer.",
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
@@ -18,9 +18,9 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260801.1",
+    "@types/node": "^25.9.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11",
-    "wrangler": "^4.92.0",
-    "@types/node": "^25.9.0"
+    "wrangler": "^4.147.0"
   }
 }
