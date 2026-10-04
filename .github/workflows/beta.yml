@@ -10,7 +10,8 @@ name: Beta
 # DO namespace; its other bindings are the `previews` block in the Worker's
 # wrangler.jsonc, pointed at the same production resources. Cloudflare never
 # runs a cron or a queue consumer for a Preview, so the beta adds no second
-# scheduler or consumer. Nothing here runs `wrangler deploy`.
+# scheduler or consumer. Nothing here runs `wrangler deploy`, and a Worker
+# with no production deployment yet is skipped.
 #
 # Skips cleanly when CLOUDFLARE_API_TOKEN is not available to the repo.
 
@@ -67,8 +68,22 @@ jobs:
       - if: env.CLOUDFLARE_API_TOKEN != ''
         run: pnpm install --frozen-lockfile
 
-      - name: wrangler preview --name staging
+      # These Workers are not deployed yet. Until a Worker has a production
+      # deployment, skip it rather than let its first Preview create the
+      # Worker in the account ahead of the owner's deploy.
+      - name: Is the Worker deployed?
+        id: deployed
         if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: apps/${{ matrix.app }}
+        run: |
+          if pnpm exec wrangler deployments list --json >/dev/null 2>&1; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::${{ matrix.app }} has no production deployment yet; no beta."
+          fi
+
+      - name: wrangler preview --name staging
+        if: env.CLOUDFLARE_API_TOKEN != '' && steps.deployed.outputs.yes == 'true'
         working-directory: apps/${{ matrix.app }}
         env:
           SHA: ${{ github.sha }}
