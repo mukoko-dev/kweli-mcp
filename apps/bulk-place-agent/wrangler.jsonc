@@ -62,7 +62,9 @@
     { "binding": "DEDUP_KV", "id": "7e726479ef2048c5b12e51bf1cc25141" },
   ],
 
-  // Workers AI: generate_description routes through the shamwari AI Gateway.
+  // Workers AI: generate_description routes through the `fundi` AI Gateway
+  // (background agents — authenticated, no guardrails, no cache). The binding
+  // is pre-authenticated, so no gateway token is stored here.
   "ai": { "binding": "AI" },
 
   // Hourly sweeper for failed/partial stragglers.
@@ -70,7 +72,10 @@
 
   "routes": [{ "pattern": "fundi-bulk.nyuchi.dev", "custom_domain": true }],
 
-  "observability": { "enabled": true },
+  // Traces: Workers tracing plus metadata-only agent spans (src/tracing.ts).
+  // Sampling is left at the default of 1 (every request; owner decision
+  // 2026-10-04: 100%, metadata only).
+  "observability": { "enabled": true, "traces": { "enabled": true } },
 
   // Keep the mongodb driver's optional native add-ons (.node binaries) out of
   // the esbuild bundle; the driver runs fine without them.
@@ -84,8 +89,18 @@
   // Build-time constants only. Every WorkOS value is set as an environment
   // variable per Cloudflare environment — see .dev.vars.example.
   "vars": {
-    "FUNDI_AI_MODEL": "workers-ai/@cf/moonshotai/kimi-k2.6",
-    "FUNDI_AI_GATEWAY": "shamwari",
+    // Direct model: the fallback while the dynamic route below is not
+    // configured on the gateway. Qwen3-30B-A3B (MoE, ~3B active) is far cheaper
+    // per call than kimi-k2.6 for 2-3 sentences of prose.
+    "FUNDI_AI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8",
+    // Gateway dynamic route; preferred when present on the gateway.
+    "FUNDI_AI_ROUTE": "dynamic/places",
+    "FUNDI_AI_GATEWAY": "fundi",
+    // Max Workers AI requests per UTC day (src/ai-budget.ts), shared with
+    // fundi-ingestion through the same D1 table. Each description costs one or
+    // two requests (one hedge retry). When spent, places are written without a
+    // description and stay re-enrichable.
+    "FUNDI_AI_DAILY_BUDGET": "2000",
     "FUNDI_BOUNDARY_BBOX": "-36,-26,38,64",
   },
 

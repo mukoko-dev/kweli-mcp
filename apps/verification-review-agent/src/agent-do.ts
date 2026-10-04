@@ -14,7 +14,7 @@
  *   1. Read pending `entity.representativeClaims` rows (needs a Mongo read
  *      via @kweli-mcp/mongo — claims live in `entity`, same db as entities).
  *   2. For each claim, fetch `evidenceUrl` and summarize it (Workers AI via
- *      the shamwari AI Gateway, same binding pattern as
+ *      the `fundi` AI Gateway (background agents), same binding pattern as
  *      apps/bulk-ingestion-agent's generateDescription skill).
  *   3. Flag anomalies: evidence domain mismatch vs. the entity's own
  *      website, a claimant with no prior activity, a duplicate claim on the
