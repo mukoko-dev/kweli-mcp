@@ -18,6 +18,10 @@ declare global {
     MONGODB_URI: string;
     FUNDI_AI_MODEL?: string;
     FUNDI_AI_GATEWAY?: string;
+    // AI Gateway dynamic route for descriptions (e.g. "dynamic/places").
+    FUNDI_AI_ROUTE?: string;
+    // Max Workers AI requests per UTC day (counted in the D1 ai_budget table).
+    FUNDI_AI_DAILY_BUDGET?: string;
     FUNDI_BOUNDARY_BBOX?: string;
     WHAT3WORDS_API_KEY?: string;
 
