@@ -104,5 +104,54 @@
     "FUNDI_BOUNDARY_BBOX": "-36,-26,38,64",
   },
 
+  // Worker Previews: the staging beta (nyuchi/.github#84). Every push to
+  // `staging` runs `wrangler preview --name staging` (.github/workflows/beta.yml).
+  // Previews inherit NOTHING from the top level, so each binding is repeated
+  // here against the SAME production resources (owner rule: no staging data
+  // stores). Each Preview gets its own Durable Object namespace automatically.
+  // Secrets and the dashboard vars kept by keep_vars come from the Previews
+  // Base (`wrangler preview base-config secret put NAME`), not this file.
+  // Deliberately absent: the queue CONSUMER and the hourly cron. Cloudflare
+  // never runs either for a Preview, so the beta adds no second consumer or
+  // scheduler. Without them the Preview's FundiAgent never executes a task
+  // (only the queue consumer calls run()), so it sets no alarms; a task the
+  // beta's POST /tasks enqueues goes to the production queue and is consumed
+  // once, by production.
+  "previews": {
+    "durable_objects": {
+      "bindings": [{ "class_name": "FundiAgent", "name": "FUNDI_AGENT" }],
+    },
+    "queues": {
+      "producers": [
+        { "queue": "fundi-ingestion-tasks", "binding": "TASK_QUEUE" },
+      ],
+    },
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "fundi-ingestion-ledger",
+        "database_id": "1ca0ed44-20fc-4cd5-a6c1-86b40daf1041",
+        "migrations_dir": "migrations",
+      },
+    ],
+    "kv_namespaces": [
+      { "binding": "DEDUP_KV", "id": "7e726479ef2048c5b12e51bf1cc25141" },
+    ],
+    "ai": { "binding": "AI" },
+    "observability": { "enabled": true, "traces": { "enabled": true } },
+    "vars": {
+      "FUNDI_AI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8",
+      "FUNDI_AI_ROUTE": "dynamic/places",
+      "FUNDI_AI_GATEWAY": "fundi",
+      // Shared with production through the same D1 table: beta calls spend
+      // the same daily budget.
+      "FUNDI_AI_DAILY_BUDGET": "2000",
+      "FUNDI_BOUNDARY_BBOX": "-36,-26,38,64",
+    },
+  },
+  // workers.dev Preview URLs, so the beta URL serves. Takes effect on the
+  // Worker's first production deploy (or the Preview toggle on its Domains tab).
+  "preview_urls": true,
+
   "dev": { "port": 8790 },
 }
