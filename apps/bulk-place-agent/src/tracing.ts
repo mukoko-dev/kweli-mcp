@@ -4,7 +4,10 @@
 // a `chat` span per model call. Owner decision 2026-10-04: METADATA ONLY — no
 // messages, system instructions or outputs are ever set as attributes.
 
-import { tracing } from "cloudflare:workers";
+// Namespace import, not `import { tracing }`: a named import the runtime does
+// not provide fails at module link time and would take the whole Worker down;
+// a missing namespace property just leaves tracing off.
+import * as workers from "cloudflare:workers";
 
 export const AGENT_NAME = "kweli-bulk-place-agent";
 
@@ -25,6 +28,7 @@ function withSpan<T>(
   fn: () => Promise<T>,
 ): Promise<T> {
   // Defensive: run untraced if the runtime does not expose the API.
+  const tracing = (workers as { tracing?: Tracing }).tracing;
   if (!tracing?.enterSpan) return fn();
   return tracing.enterSpan(name, async (span) => {
     for (const [k, v] of Object.entries(attrs)) span.setAttribute(k, v);
