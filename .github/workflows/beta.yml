@@ -70,16 +70,25 @@ jobs:
 
       # These Workers are not deployed yet. Until a Worker has a production
       # deployment, skip it rather than let its first Preview create the
-      # Worker in the account ahead of the owner's deploy.
+      # Worker in the account ahead of the owner's deploy. Only a "this Worker
+      # does not exist" answer (Cloudflare API code 10007) means "not deployed";
+      # any other failure (an expired or under-scoped token, a 429 or 5xx) fails
+      # the job, so the beta can't stop updating silently.
       - name: Is the Worker deployed?
         id: deployed
         if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: apps/${{ matrix.app }}
+        env:
+          APP: ${{ matrix.app }}
         run: |
-          if pnpm exec wrangler deployments list --json >/dev/null 2>&1; then
+          if out="$(pnpm exec wrangler deployments list --json 2>&1)"; then
             echo "yes=true" >> "$GITHUB_OUTPUT"
+          elif printf '%s' "$out" | grep -qE 'code: 10007|does not exist on your account'; then
+            echo "::notice::$APP has no production deployment yet; no beta."
           else
-            echo "::notice::${{ matrix.app }} has no production deployment yet; no beta."
+            printf '%s\n' "$out"
+            echo "::error::$APP: wrangler deployments list failed (not a missing Worker); check the Cloudflare token and API status."
+            exit 1
           fi
 
       - name: wrangler preview --name staging
