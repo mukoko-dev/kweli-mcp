@@ -73,5 +73,42 @@
   // config, which differs per environment and is set as an environment
   // variable — see .dev.vars.example.
 
+  // Worker Previews: the staging beta (nyuchi/.github#84). Every push to
+  // `staging` runs `wrangler preview --name staging` (.github/workflows/beta.yml).
+  // Previews inherit NOTHING from the top level, so each binding is repeated
+  // here against the SAME production resources (owner rule: no staging data
+  // stores). Each Preview gets its own Durable Object namespace automatically.
+  // Secrets and the dashboard vars kept by keep_vars come from the Previews
+  // Base (`wrangler preview base-config secret put NAME`), not this file.
+  // The route (kweli.mukoko.com/mcp*) is deliberately absent: routes never
+  // target a Preview. Service bindings from a Preview call the PRODUCTION
+  // bulk-place-agent and single-place-agent.
+  "previews": {
+    "durable_objects": {
+      "bindings": [{ "class_name": "KweliMcp", "name": "MCP_OBJECT" }],
+    },
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "fundi-ingestion-ledger",
+        "database_id": "1ca0ed44-20fc-4cd5-a6c1-86b40daf1041",
+      },
+    ],
+    "kv_namespaces": [
+      { "binding": "OAUTH_KV", "id": "7b3cb31f73744a73a6f4aef9a0aff61c" },
+    ],
+    "services": [
+      { "binding": "BULK_PLACE_AGENT", "service": "kweli-bulk-place-agent" },
+      {
+        "binding": "SINGLE_PLACE_AGENT",
+        "service": "kweli-single-place-agent",
+      },
+    ],
+    "observability": { "enabled": true },
+  },
+  // workers.dev Preview URLs, so the beta URL serves. Takes effect on the
+  // Worker's first production deploy (or the Preview toggle on its Domains tab).
+  "preview_urls": true,
+
   "dev": { "port": 8789 },
 }
