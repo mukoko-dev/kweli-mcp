@@ -1,0 +1,104 @@
+name: Beta
+
+# The live beta (nyuchi/.github#84): every push to `staging` creates or updates
+# the Worker Preview named `staging` for each Worker, served at
+#   https://staging-<worker-name>.nyuchi.workers.dev
+#
+# `wrangler preview` (wrangler 4.135+), not `wrangler versions upload
+# --preview-alias`: every Worker here has a Durable Object, and Cloudflare
+# does not generate version or alias URLs for those. Each Preview gets its own
+# DO namespace; its other bindings are the `previews` block in the Worker's
+# wrangler.jsonc, pointed at the same production resources. Cloudflare never
+# runs a cron or a queue consumer for a Preview, so the beta adds no second
+# scheduler or consumer. Nothing here runs `wrangler deploy`, and a Worker
+# with no production deployment yet is skipped.
+#
+# Skips cleanly when CLOUDFLARE_API_TOKEN is not available to the repo.
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: beta-staging
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Update the staging Preview (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.ref == 'refs/heads/staging'
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - mcp
+          - bulk-place-agent
+          - single-place-agent
+          - verification-review-agent
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: No Cloudflare token
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "::notice::CLOUDFLARE_API_TOKEN is not set; no beta upload."
+
+      - uses: actions/checkout@v4
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        with:
+          version: 10.15.0
+
+      - uses: actions/setup-node@v4
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - if: env.CLOUDFLARE_API_TOKEN != ''
+        run: pnpm install --frozen-lockfile
+
+      # These Workers are not deployed yet. Until a Worker has a production
+      # deployment, skip it rather than let its first Preview create the
+      # Worker in the account ahead of the owner's deploy. Only a "this Worker
+      # does not exist" answer (Cloudflare API code 10007) means "not deployed";
+      # any other failure (an expired or under-scoped token, a 429 or 5xx) fails
+      # the job, so the beta can't stop updating silently.
+      - name: Is the Worker deployed?
+        id: deployed
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: apps/${{ matrix.app }}
+        env:
+          APP: ${{ matrix.app }}
+        run: |
+          if out="$(pnpm exec wrangler deployments list --json 2>&1)"; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          elif printf '%s' "$out" | grep -qE 'code: 10007|does not exist on your account'; then
+            echo "::notice::$APP has no production deployment yet; no beta."
+          else
+            printf '%s\n' "$out"
+            echo "::error::$APP: wrangler deployments list failed (not a missing Worker); check the Cloudflare token and API status."
+            exit 1
+          fi
+
+      - name: wrangler preview --name staging
+        if: env.CLOUDFLARE_API_TOKEN != '' && steps.deployed.outputs.yes == 'true'
+        working-directory: apps/${{ matrix.app }}
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          set -o pipefail
+          out="$(pnpm exec wrangler preview --name staging --message "staging ${SHA::7}" --json)"
+          printf '%s\n' "$out"
+          url="$(printf '%s' "$out" | jq -r '.preview.urls[0] // empty' 2>/dev/null || true)"
+          echo "Beta (${{ matrix.app }}): ${url:-see the wrangler output}" >> "$GITHUB_STEP_SUMMARY"

@@ -41,5 +41,24 @@
   // config, which differs per environment and is set as an environment
   // variable — see .dev.vars.example.
 
+  // Worker Previews: the staging beta (nyuchi/.github#84). Every push to
+  // `staging` runs `wrangler preview --name staging` (.github/workflows/beta.yml).
+  // Previews inherit NOTHING from the top level, so each binding is repeated
+  // here against the SAME production resources (owner rule: no staging data
+  // stores). Each Preview gets its own Durable Object namespace automatically.
+  // Secrets and the dashboard vars kept by keep_vars come from the Previews
+  // Base (`wrangler preview base-config secret put NAME`), not this file.
+  "previews": {
+    "durable_objects": {
+      "bindings": [
+        { "class_name": "SinglePlaceAgent", "name": "SINGLE_PLACE_AGENT" },
+      ],
+    },
+    "observability": { "enabled": true },
+  },
+  // workers.dev Preview URLs, so the beta URL serves. Takes effect on the
+  // Worker's first production deploy (or the Preview toggle on its Domains tab).
+  "preview_urls": true,
+
   "dev": { "port": 8792 },
 }
