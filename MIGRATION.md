@@ -103,7 +103,22 @@ Two details that are load-bearing rather than cosmetic:
   different OAuth client and answer 200 while doing it — a silent
   cross-wiring, not an error.
 
-**Blocked on a decision — do not add the Cloudflare route yet.**
+**Decided 2026-10-07: split by tool (option 2 below).** The owner's call:
+the graph reads stay anonymous under the open-data policy, and sign-in is
+asked for only for generation and internal tools. Done in code
+(`apps/mcp/src/public-gate.ts`): a request with no token is served
+anonymously; calling a gated tool without one answers 401 with an RFC 9728
+`resource_metadata` pointer, so the client signs in and retries. The open set
+is an allowlist (`PUBLIC_TOOLS`); `search_venues` / `get_venue` stay callable as
+aliases; the anonymous door is limited to 60 calls a minute per IP, as the
+Next.js route was. Discovery is fixed in the same change: the worker serves
+its own protected-resource and authorization-server metadata at the
+path-suffixed `.well-known/*/mcp` URLs, naming `https://kweli.mukoko.com/mcp`
+as the issuer, and `wrangler.jsonc` routes those paths here. Deploying the
+routes retires the Next.js route; the remaining blockers are the M2M secrets
+and the shared D1/KV below.
+
+The decision as it was framed:
 `kweli.mukoko.com/mcp` is already live: `nyuchi/kweli`'s `app/mcp/route.ts`
 serves an **anonymous, read-only** MCP (`search_places`, `get_place`,
 `get_organization`, `get_verification`, `get_open_stats`, plus the legacy

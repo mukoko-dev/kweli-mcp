@@ -22,6 +22,13 @@ import {
 } from "./authkit-handler";
 import { KweliMcp } from "./mcp";
 import { mcpBasePath } from "./paths";
+import {
+  decideAnonymous,
+  isAuthServerMetadataPath,
+  protectedResourceMetadata,
+  signInRequired,
+  withMountIssuer,
+} from "./public-gate";
 
 export { KweliMcp };
 
@@ -68,7 +75,31 @@ export default {
   ): Promise<Response> {
     const basePath = mcpBasePath(env);
     const { options, provider, defaultHandler } = mountFor(basePath);
-    const { pathname } = new URL(request.url);
+    const { origin, pathname } = new URL(request.url);
+
+    // Discovery for MCP clients, served under paths the zone routes send here
+    // (wrangler.jsonc). The origin-root documents belong to the Kweli web app.
+    if (
+      pathname === `/.well-known/oauth-protected-resource${basePath}` ||
+      pathname === `${basePath}/.well-known/oauth-protected-resource`
+    ) {
+      return protectedResourceMetadata(origin, basePath);
+    }
+    if (isAuthServerMetadataPath(pathname, basePath)) {
+      const res = await provider.fetch(
+        new Request(`${origin}/.well-known/oauth-authorization-server`),
+        env,
+        ctx,
+      );
+      if (!res.ok) return res;
+      const metadata = (await res.json()) as Record<string, unknown>;
+      return Response.json(withMountIssuer(metadata, origin, basePath), {
+        headers: {
+          "access-control-allow-origin": "*",
+          "cache-control": "public, max-age=3600",
+        },
+      });
+    }
 
     // `apiRoute` is matched by PREFIX inside the provider, and with the MCP
     // endpoint mounted at `<base>` every sibling path shares that prefix — so
@@ -94,6 +125,42 @@ export default {
       (pathname === basePath ||
         pathname === options.tokenEndpoint ||
         pathname === options.clientRegistrationEndpoint);
+
+    // The open door (split by tool, see public-gate.ts): no token, so the
+    // graph reads are served anonymously and a gated tool answers 401.
+    if (
+      pathname === basePath &&
+      !wantsHtmlLanding &&
+      request.method !== "OPTIONS" &&
+      !request.headers.get("authorization")
+    ) {
+      const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+      if (env.PUBLIC_RATE_LIMITER) {
+        const { success } = await env.PUBLIC_RATE_LIMITER.limit({ key: ip });
+        if (!success) {
+          return Response.json(
+            {
+              error: "rate_limited",
+              error_description: "Too many requests; slow down.",
+            },
+            { status: 429, headers: { "retry-after": "60" } },
+          );
+        }
+      }
+      let forward = request;
+      if (request.method === "POST") {
+        const raw = await request.text();
+        const decision = decideAnonymous(raw);
+        if (decision.kind === "sign_in") {
+          return signInRequired(origin, basePath, decision.tool);
+        }
+        forward = new Request(request, { body: decision.body ?? raw });
+      }
+      const anonymous = options.apiHandler as unknown as {
+        fetch(r: Request, e: Env, c: ExecutionContext): Promise<Response>;
+      };
+      return anonymous.fetch(forward, env, ctx);
+    }
 
     if (!belongsToProvider) {
       // The provider injects this binding on its own default-handler path;
