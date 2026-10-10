@@ -60,13 +60,32 @@ MCP servers (Kweli MCP, …)        Agents (the Fundi agents, …)
    (and `fundi-ingestion`) still connect to MongoDB with `MONGODB_URI`; moving
    them onto the Nyuchi API is required work, and no worker here should be
    given `MONGODB_URI` for the cutover.
-7. **The MCP asks Fundi through the Nyuchi API.** Chosen option (a): when a
-   signed-in person uses a Kweli MCP write tool that needs Fundi (for example
-   "find the missing places here"), the MCP writes a request through the
-   Nyuchi API, and the Fundi agents pick the work up from there. The MCP does
-   not call an agent's `POST /tasks` directly, and holds no agent credential.
+7. **The MCP asks Fundi through the Nyuchi API, and Redpanda carries the work.**
+   Chosen option (a), refined: "the messaging request hits [Redpanda] a message
+   board is created which the agent then picks up [a] single one or multiple
+   at a time." When a signed-in person uses a Kweli MCP write tool that needs
+   Fundi (for example "find the missing places here"), the MCP calls the
+   Nyuchi API; the API publishes the request to Redpanda; the Fundi agents
+   consume from that topic one message or a batch at a time. The MCP never
+   calls an agent's `POST /tasks` directly and holds no agent credential.
    **This replaces the `[[services]]` binding + M2M call from `apps/mcp` to the
    agents described below.**
+
+   What already exists in nyuchi/api-gateway (`docs/architecture/event-log.md`):
+   the API publishes Avro envelopes to Redpanda with an idempotent producer
+   over SASL/SCRAM; topics, ACLs and payload schemas live in
+   nyuchi/data-infra; event types must be past-tense facts
+   (`<domain>.<entity>.<verb>`, topic `<domain>.<entity>`), so the request is
+   a fact such as `fundi.request.recorded` on `fundi.request`; the
+   `nyuchi_events` consumer machinery reads in batches (up to 500), dedupes
+   by `event_id`, and sends failures to `<topic>.dlq`.
+
+   **Open — the bridge.** Redpanda listens only on Fly's private network
+   (`*.internal:9092`, `SASL_PLAINTEXT`) and has no HTTP proxy, while the
+   Fundi agents are Cloudflare Workers, so they cannot reach the board today.
+   Redpanda authorisation is per SCRAM user and is not yet tied to WorkOS
+   agent identity. The bridge must let an agent, authenticated as an employee
+   (decision 3), take one or many requests and acknowledge them.
 
 ### Cutover status (2026-10-10)
 
@@ -89,8 +108,10 @@ MCP servers (Kweli MCP, …)        Agents (the Fundi agents, …)
   passed fundi-ingestion's org-restricted gate.
 - **Next, in order:**
   1. The Nyuchi API surface the MCP and agents need (reads already exist under
-     `/v1/places`, `/v1/entities`, `/v1/verification`; a write path for "find
-     what is missing" requests per decision 7).
+     `/v1/places`, `/v1/entities`, `/v1/verification`), the `fundi.request`
+     topic and payload schema in nyuchi/data-infra, the API route that
+     publishes it, and the bridge that lets the agents consume it
+     (decision 7).
   2. Move `apps/*` from MongoDB onto that API.
   3. Agent identity in the agents (decision 3), replacing the M2M gate.
   4. Register the Kweli MCP in the Cloudflare MCP portal and the agents in the
