@@ -87,6 +87,22 @@ MCP servers (Kweli MCP, …)        Agents (the Fundi agents, …)
    agent identity. The bridge must let an agent, authenticated as an employee
    (decision 3), take one or many requests and acknowledge them.
 
+8. **Agent tasks live on a task board at `tasks.nyuchi.dev`, stored in D1.**
+   "I actually would love to see this on tasks.nyuchi.dev and internal
+   dashboard of agent tasks with a status and priority WorkOS login for
+   humans" and "I actually think we should use d1". The board is the bridge
+   for decision 7: agents claim one or several tasks over HTTPS with their
+   WorkOS agent identity (a lease they renew while working), then report done
+   or failed; an expired lease returns the task to the board. People sign in
+   with WorkOS (Nyuchi Africa only) to see every agent's tasks by status and
+   priority, and to reprioritise, retry or cancel. Redpanda stays the event
+   log of facts about tasks; agents never connect to it. MQTT was considered
+   and not chosen: it moves messages but holds no task status, priority or
+   lease. The board owns its D1 database as an operational queue, not shared
+   graph data, so decision 6 still holds. Fundi's existing ledger
+   (`fundi-ingestion-ledger`, table `tasks`) already carries status and
+   priority and is the starting data.
+
 ### Cutover status (2026-10-10)
 
 - **Live:** `kweli.mukoko.com/mcp` is still the Next.js route in
