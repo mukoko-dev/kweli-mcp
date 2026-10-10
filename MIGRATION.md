@@ -1,5 +1,103 @@
 # Migration status: fundi-ingestion → kweli-mcp
 
+## Architecture — owner decisions, 2026-10-10
+
+These decisions supersede anything below that disagrees with them. The sections
+further down are kept as the record of how the split was done; where they
+conflict with this section, this section wins.
+
+```
+Apps · Claude · other clients
+   │                                   │
+   │ Cloudflare MCP portal             │ Cloudflare API Gateway
+   ▼                                   ▼
+MCP servers (Kweli MCP, …)        Agents (the Fundi agents, …)
+   a person signs in                  WorkOS agent identity,
+   read and write                     acting as an employee
+   │                                   │
+   └──────────────┬────────────────────┘
+                  ▼
+        Nyuchi API (api.nyuchi.com)   ← the only layer on the databases
+                  ▼
+           MongoDB · Postgres
+```
+
+1. **Agents are separate from MCP servers.** "Agents are treated separately
+   from mcp." The Kweli MCP (`apps/mcp`) is an MCP server; the Fundi agents
+   (`apps/bulk-place-agent`, `apps/single-place-agent`,
+   `apps/verification-review-agent`) are agents. They are fronted
+   separately: MCP servers through the **Cloudflare MCP portal**, agents
+   through the **Cloudflare API Gateway**. Neither is exposed directly on its
+   own hostname as the long-term shape.
+2. **The Kweli MCP is read and write, with a person signing in.** "Kweli mcp
+   is read and write, using a human to authenticate." The open graph reads
+   stay anonymous (decision of 2026-10-07, `apps/mcp/src/public-gate.ts`);
+   anything that writes needs a signed-in person through the **Kweli MCP**
+   WorkOS app.
+3. **Fundi agents act as employees, with WorkOS agent identity.** "fundi
+   agents use agent with they act as employees … they use workos agent auth.
+   With employee permissions." The flow is documented at
+   `https://accounts.mukoko.com/agent/auth.md`: an agent registers an
+   identity bound to an employee's email (`service_auth`), the employee
+   approves the claim, and the agent exchanges its assertion
+   (`urn:ietf:params:oauth:grant-type:jwt-bearer`) for short-lived access
+   tokens carrying that employee's permissions. Agents verify those tokens
+   and check the employee permission they need (for example `fundi:admin`).
+   **This replaces the M2M `client_credentials` design below** — the "Kweli
+   Fundi" and "Kweli" M2M apps and their client secrets are no longer on the
+   cutover path.
+4. **Fundi is a shared service, not a Kweli feature.** "fundi ingestion is
+   the agent behind that seeds info into the right places … its role is to
+   contribute and find things that are missing. It can be used by any repo
+   or app." Callers must not have to change when Fundi moves: the address
+   and request contract stay stable through the cutover.
+5. **Fundi is not under the Nyuchi API.** "Fundi is not under the api. It's
+   on top as we have multiple different fundi agents." A `/v1/fundi` proxy in
+   the gateway was proposed and rejected (nyuchi/api-gateway#296, closed).
+6. **No direct database access above the Nyuchi API.** "Nyuchi api sits on
+   top of the [database] so no direct [db] access." The MCP and the agents
+   read and write through `api.nyuchi.com`, not MongoDB. Today `apps/*`
+   (and `fundi-ingestion`) still connect to MongoDB with `MONGODB_URI`; moving
+   them onto the Nyuchi API is required work, and no worker here should be
+   given `MONGODB_URI` for the cutover.
+7. **The MCP asks Fundi through the Nyuchi API.** Chosen option (a): when a
+   signed-in person uses a Kweli MCP write tool that needs Fundi (for example
+   "find the missing places here"), the MCP writes a request through the
+   Nyuchi API, and the Fundi agents pick the work up from there. The MCP does
+   not call an agent's `POST /tasks` directly, and holds no agent credential.
+   **This replaces the `[[services]]` binding + M2M call from `apps/mcp` to the
+   agents described below.**
+
+### Cutover status (2026-10-10)
+
+- **Live:** `kweli.mukoko.com/mcp` is still the Next.js route in
+  mukoko-dev/kweli. `kweli.mukoko.com` is proxied through Cloudflare; a zone
+  WAF custom rule lets `*.mukoko.com/mcp` and `*.mukoko.com/mcp/*` skip Super
+  Bot Fight Mode and the managed WAF rules (owner decision 2026-10-10), because
+  MCP clients — Claude among them — are automated by design and were being
+  served managed challenges.
+- **Deployed privately, carrying no traffic:** `kweli-mcp`,
+  `kweli-single-place-agent` and `kweli-bulk-place-agent` exist on
+  `*.nyuchi.workers.dev` only — no zone routes, no custom domains. The bulk
+  agent was deployed as a queue **producer only** (no consumer, no cron), so
+  `fundi-ingestion` is still the sole consumer of `fundi-ingestion-tasks`.
+  They have no `MONGODB_URI` (see decision 6) and so serve no data.
+- **Fixed before cutover:** `apps/mcp` now has its own OAuth KV namespace,
+  `kweli-mcp-OAUTH_KV`. It previously shared `fundi-OAUTH_KV` with
+  `fundi-ingestion`, and `@cloudflare/workers-oauth-provider` accepts a token
+  wherever its KV entry is found, so a Kweli sign-in (any user) would have
+  passed fundi-ingestion's org-restricted gate.
+- **Next, in order:**
+  1. The Nyuchi API surface the MCP and agents need (reads already exist under
+     `/v1/places`, `/v1/entities`, `/v1/verification`; a write path for "find
+     what is missing" requests per decision 7).
+  2. Move `apps/*` from MongoDB onto that API.
+  3. Agent identity in the agents (decision 3), replacing the M2M gate.
+  4. Register the Kweli MCP in the Cloudflare MCP portal and the agents in the
+     Cloudflare API Gateway (decision 1).
+  5. Only then route `kweli.mukoko.com/mcp` to `apps/mcp`, and retire
+     `fundi-ingestion` with its address and contract kept stable (decision 4).
+
 `nyuchi/kweli`'s `workers/fundi-ingestion/` is the origin of the code now
 split across `apps/bulk-place-agent/` and `apps/mcp/` in this repo. Per the
 agreed migration mode ("copy now, remove from kweli later"):
@@ -29,7 +127,8 @@ agreed migration mode ("copy now, remove from kweli later"):
      deployed here and verified against a real task end-to-end (submit →
      queue → DO → Mongo write → D1 status), including a real WorkOS M2M
      round-trip (mint → verify) for each agent.
-  2. ~~Two more WorkOS M2M applications are registered for real~~ **Done —
+  2. _(Superseded by decision 3: agents use WorkOS agent identity, not M2M.)_
+     ~~Two more WorkOS M2M applications are registered for real~~ **Done —
      see the app map below.** **Still outstanding:** a human must generate
      each M2M app's client secret in the WorkOS dashboard — that step is
      deliberately not exposed via the admin API/MCP surface — and set it as
@@ -53,6 +152,10 @@ Until step 5, treat `nyuchi/kweli`'s copy as the live source of truth and
 this repo's copy as staged, not yet serving production traffic.
 
 ## The WorkOS application map
+
+> **Superseded in part (decision 3, 2026-10-10):** the agents authenticate with WorkOS
+> agent identity acting as employees. The two M2M apps below are no longer on the
+> cutover path; the **Kweli MCP** OAuth app (people signing in) still is.
 
 Every app in this repo maps to exactly one WorkOS Connect application. All of
 these are in the **Production** environment (`environment_01KQBBSMDHMT9Y5GVD8S1A3C0W`);
