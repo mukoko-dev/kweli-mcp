@@ -48,8 +48,9 @@ Owner decision, 2026-10-14: every repo follows one stack.
   ones. Backends in different domains connect to each other through service
   bindings.
 - **Business backend: `mukoko-business-backend`.** One new Rust Worker (not
-  built yet) that Verify and Kweli sit on. It verifies WorkOS. Verify and Kweli
-  can run on Vercel. This MCP server uses it too; as a Worker it reaches it
+  built yet) that Verify and Kweli sit on. It verifies WorkOS. Verify stays a
+  Worker and reaches it through a service binding; Kweli can run on Vercel.
+  This MCP server uses it too; as a Worker it reaches it
   through a service binding. Neither UI should keep a data store or business
   rules of its own. How the backend calls the API (a five-minute machine token
   bound to its own key, acting for a person only within its reach) is set by the
