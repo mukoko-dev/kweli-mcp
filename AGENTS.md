@@ -21,9 +21,10 @@ Owner decision, 2026-10-14: every repo follows one stack.
   script. A missing or changed component is fixed upstream in
   `mzizi-dev/mzizi-registry` (contract, `.astro` and `.tsx` together); do not
   fork or restyle it here.
-- **Logic is Rust, TypeScript second.** The Rust fills the Astro shells and
-  holds the data and the rules. Shared logic comes from the `mzizi-*` crates on
-  crates.io (all 0.3.0, published 2026-10-07): `mzizi-roots`,
+- **Servers and backends are Rust only.** The Rust fills the Astro shells and
+  holds the data and the rules. The server components are crates, not npm
+  packages: shared logic comes from the `mzizi-*` crates on crates.io (all
+  0.3.0, published 2026-10-07): `mzizi-roots`,
   `mzizi-roots-server`, `mzizi-tokens`, `mzizi-ui`, `mzizi-shell`,
   `mzizi-brand`, and the server cores `mzizi-assurance`, `mzizi-discovery`,
   `mzizi-docs`, `mzizi-fundi` and `mzizi-activitypub`. Pin versions.
@@ -46,9 +47,12 @@ Where this repo stands today:
   other agents), with `pnpm` and Turborepo. Nothing here is Rust yet, and
   the production cut-over is still pending (see `MIGRATION.md`; `beta.yml`
   publishes a staging preview).
-- **Direction for the server logic:** a sans-IO Rust core (routing, response
-  shaping, the rules) behind a thin TypeScript host. An MCP server stays
-  TypeScript on the host side because the MCP SDK and `agents` are
-  TypeScript-first (`mzizi-backend` skill). Only the core moves to Rust.
+- **Direction:** all of it is Rust, the MCP server included. The Mzizi
+  `mzizi-backend` skill still describes a TypeScript host for MCP servers
+  (the MCP SDK and `agents` are TypeScript-first); this repo follows the
+  owner's rule instead. The shape is a sans-IO core with a thin `worker`
+  (workers-rs) host. `rmcp` (the Rust MCP SDK on crates.io, 3.5.1) is a
+  candidate for the MCP layer; whether it builds for the Workers wasm target
+  has not been checked, so the tracking issue must settle that first.
 - Do not port a working Worker without a tracking issue. When one is ported,
   its existing tests are the contract the port must meet.
