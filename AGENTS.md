@@ -34,6 +34,9 @@ Owner decision, 2026-10-14: every repo follows one stack.
 - **Big moves need an issue first.** A rewrite (a framework or a language)
   gets a tracking issue that names the entity it belongs to, what it
   replaces and the metric it moves, before any code.
+- **One business backend.** Verify and Kweli are UIs on top of a single Rust
+  business backend Worker, and Kweli's MCP server uses the same one. Neither UI
+  should keep a data store or business rules of its own.
 
 - **Mzizi limits today.** `@bundu/ui` 0.6.0 was not on npm when this was
   written (0.5.0 was the latest on 2026-10-07). Only seven primitives have
@@ -47,12 +50,16 @@ Where this repo stands today:
   other agents), with `pnpm` and Turborepo. Nothing here is Rust yet, and
   the production cut-over is still pending (see `MIGRATION.md`; `beta.yml`
   publishes a staging preview).
-- **Direction:** all of it is Rust, the MCP server included. The Mzizi
-  `mzizi-backend` skill still describes a TypeScript host for MCP servers
-  (the MCP SDK and `agents` are TypeScript-first); this repo follows the
-  owner's rule instead. The shape is a sans-IO core with a thin `worker`
-  (workers-rs) host. `rmcp` (the Rust MCP SDK on crates.io, 3.5.1) is a
-  candidate for the MCP layer; whether it builds for the Workers wasm target
-  has not been checked, so the tracking issue must settle that first.
+- **Direction, MCP server:** Rust where possible. The TypeScript MCP stays
+  until a Rust one is viable; the Mzizi `mzizi-backend` skill also still
+  describes a TypeScript host (the MCP SDK and `agents` are TypeScript-first).
+  `rmcp` (the Rust MCP SDK on crates.io, 3.5.1) is a candidate; whether it
+  builds for the Workers wasm target has not been checked, so the tracking
+  issue must settle that first. The tools call the one business backend; they
+  do not hold business rules of their own.
+- **MCP Apps are the exception.** The interactive views an MCP server returns
+  (for example the places map card) are HTML or TypeScript, because the MCP
+  Apps format needs it. They are not Astro and not Rust, and they stay thin:
+  rendering only, with the data and rules behind the tool.
 - Do not port a working Worker without a tracking issue. When one is ported,
   its existing tests are the contract the port must meet.
