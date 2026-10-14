@@ -34,12 +34,14 @@ Owner decision, 2026-10-14: every repo follows one stack.
 - **Big moves need an issue first.** A rewrite (a framework or a language)
   gets a tracking issue that names the entity it belongs to, what it
   replaces and the metric it moves, before any code.
-- **One business backend, on the api-gateway.** Verify and Kweli are UIs on
-  top of a single Rust business backend Worker, and Kweli's MCP server uses the
-  same one. That backend, and every other backend, sits on top of the
-  api-gateway (`api.nyuchi.com`) and has no direct database access: no
-  database driver, no connection string, no database binding. Neither UI should
-  keep a data store or business rules of its own.
+- **One business backend: `mukoko-business-backend`.** Verify and Kweli are UIs
+  on top of one new Rust Worker, `mukoko-business-backend` (not built yet).
+  A UI never calls the api-gateway (`api.nyuchi.com`) directly: it calls the
+  backend through a Cloudflare service binding. The backend verifies WorkOS,
+  and it sits on top of the api-gateway. Kweli's MCP server uses the same
+  backend. No backend has direct database access: no database driver, no
+  connection string, no database binding. Neither UI should keep a data store
+  or business rules of its own.
 
 - **Mzizi limits today.** `@bundu/ui` 0.6.0 was not on npm when this was
   written (0.5.0 was the latest on 2026-10-07). Only seven primitives have
