@@ -34,9 +34,12 @@ Owner decision, 2026-10-14: every repo follows one stack.
 - **Big moves need an issue first.** A rewrite (a framework or a language)
   gets a tracking issue that names the entity it belongs to, what it
   replaces and the metric it moves, before any code.
-- **One business backend.** Verify and Kweli are UIs on top of a single Rust
-  business backend Worker, and Kweli's MCP server uses the same one. Neither UI
-  should keep a data store or business rules of its own.
+- **One business backend, on the api-gateway.** Verify and Kweli are UIs on
+  top of a single Rust business backend Worker, and Kweli's MCP server uses the
+  same one. That backend, and every other backend, sits on top of the
+  api-gateway (`api.nyuchi.com`) and has no direct database access: no
+  database driver, no connection string, no database binding. Neither UI should
+  keep a data store or business rules of its own.
 
 - **Mzizi limits today.** `@bundu/ui` 0.6.0 was not on npm when this was
   written (0.5.0 was the latest on 2026-10-07). Only seven primitives have
@@ -50,6 +53,10 @@ Where this repo stands today:
   other agents), with `pnpm` and Turborepo. Nothing here is Rust yet, and
   the production cut-over is still pending (see `MIGRATION.md`; `beta.yml`
   publishes a staging preview).
+- **Direct data access today:** both Workers take `MONGODB_URI` and use the
+  mongodb driver, which should go through the api-gateway. They also hold D1,
+  KV, Durable Object and queue bindings; whether Worker-local state like that
+  is allowed has not been decided, so ask the owner before adding more.
 - **Direction, MCP server:** Rust where possible. The TypeScript MCP stays
   until a Rust one is viable; the Mzizi `mzizi-backend` skill also still
   describes a TypeScript host (the MCP SDK and `agents` are TypeScript-first).
