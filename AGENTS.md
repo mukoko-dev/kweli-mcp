@@ -34,18 +34,20 @@ Owner decision, 2026-10-14: every repo follows one stack.
 - **Big moves need an issue first.** A rewrite (a framework or a language)
   gets a tracking issue that names the entity it belongs to, what it
   replaces and the metric it moves, before any code.
-- **One business backend: `mukoko-business-backend`.** Verify and Kweli are UIs
-  on top of one new Rust Worker, `mukoko-business-backend` (not built yet).
-  A UI never calls the api-gateway (`api.nyuchi.com`) directly: it calls the
-  backend with a short-lived token. The backend verifies WorkOS, and it sits
-  on top of the api-gateway. Verify and Kweli can run on Vercel; the MCP server
-  is the only one of the three that is a Worker. This MCP server uses the same backend; as a Worker it can reach it by service
-  binding, which has not been decided. No backend has
-  direct database access: no database driver, no connection string, no database
-  binding. Neither UI should keep a data store or business rules of its own.
-  How the backend calls the api-gateway (a five-minute machine token bound to
-  its own key, acting for a person only within its reach) is set by the Nyuchi
-  Trust Architecture, approved 2026-10-13; its phase 1 is next.
+- **Layers.** A frontend calls a backend, and a backend calls the Nyuchi API
+  (the api-gateway, `api.nyuchi.com`). The API is not a backend: backends are
+  Workers that sit on top of it, and none has direct database access (no
+  database driver, no connection string, no database binding). A frontend on a
+  Cloudflare Worker reaches its backend through a service binding. A frontend
+  on Vercel needs another way, which is not designed yet (short-lived tokens
+  were the idea).
+- **Business backend: `mukoko-business-backend`.** One new Rust Worker (not
+  built yet) that Verify and Kweli sit on. It verifies WorkOS. Verify and Kweli
+  can run on Vercel. This MCP server uses it too; as a Worker it reaches it
+  through a service binding. Neither UI should keep a data store or business
+  rules of its own. How the backend calls the API (a five-minute machine token
+  bound to its own key, acting for a person only within its reach) is set by the
+  Nyuchi Trust Architecture, approved 2026-10-13; its phase 1 is next.
 
 - **Mzizi limits today.** `@bundu/ui` 0.6.0 was not on npm when this was
   written (0.5.0 was the latest on 2026-10-07). Only seven primitives have
