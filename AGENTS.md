@@ -43,6 +43,9 @@ Owner decision, 2026-10-14: every repo follows one stack.
   binding, which has not been decided. No backend has
   direct database access: no database driver, no connection string, no database
   binding. Neither UI should keep a data store or business rules of its own.
+  How the backend calls the api-gateway (a five-minute machine token bound to
+  its own key, acting for a person only within its reach) is set by the Nyuchi
+  Trust Architecture, approved 2026-10-13; its phase 1 is next.
 
 - **Mzizi limits today.** `@bundu/ui` 0.6.0 was not on npm when this was
   written (0.5.0 was the latest on 2026-10-07). Only seven primitives have
