@@ -46,7 +46,9 @@ Owner decision, 2026-10-14: every repo follows one stack.
 - **One backend per domain** (owner decision, 2026-10-14). A domain generally
   has one backend Worker, like `nyuchi-console-backend`, and not many small
   ones. Backends in different domains connect to each other through service
-  bindings.
+  bindings. Backends are parts of one platform: when one needs another it
+  calls it directly through a service binding and does not round-trip through
+  the API (owner decision, 2026-10-14). The API stays the way to reach data.
 - **Business backend: `mukoko-business-backend`.** One new Rust Worker (not
   built yet) that Verify and Kweli sit on. It verifies WorkOS. Verify stays a
   Worker and reaches it through a service binding; Kweli can run on Vercel.
