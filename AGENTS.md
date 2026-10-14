@@ -48,6 +48,11 @@ Owner decision, 2026-10-14: every repo follows one stack.
   rules of its own. How the backend calls the API (a five-minute machine token
   bound to its own key, acting for a person only within its reach) is set by the
   Nyuchi Trust Architecture, approved 2026-10-13; its phase 1 is next.
+- **Worker-local state is allowed** (owner decision, 2026-10-14): the
+  Cloudflare bindings of a Worker, such as D1, KV, R2, Durable Objects and
+  queues. Kweli and Verify may also use Analytics Engine and Workflows. A
+  database driver or connection string for an external database is still not
+  allowed.
 
 - **Mzizi limits today.** `@bundu/ui` 0.6.0 was not on npm when this was
   written (0.5.0 was the latest on 2026-10-07). Only seven primitives have
@@ -63,8 +68,7 @@ Where this repo stands today:
   publishes a staging preview).
 - **Direct data access today:** both Workers take `MONGODB_URI` and use the
   mongodb driver, which should go through the api-gateway. They also hold D1,
-  KV, Durable Object and queue bindings; whether Worker-local state like that
-  is allowed has not been decided, so ask the owner before adding more.
+  KV, Durable Object and queue bindings, which are allowed Worker-local state.
 - **Direction, MCP server:** Rust where possible. The TypeScript MCP stays
   until a Rust one is viable; the Mzizi `mzizi-backend` skill also still
   describes a TypeScript host (the MCP SDK and `agents` are TypeScript-first).
