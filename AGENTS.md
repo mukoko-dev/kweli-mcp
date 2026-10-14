@@ -37,10 +37,14 @@ Owner decision, 2026-10-14: every repo follows one stack.
 - **Layers.** A frontend calls a backend, and a backend calls the Nyuchi API
   (the api-gateway, `api.nyuchi.com`). The API is not a backend: backends are
   Workers that sit on top of it, and none has direct database access (no
-  database driver, no connection string, no database binding). A frontend on a
+  external database driver or connection string). A frontend on a
   Cloudflare Worker reaches its backend through a service binding. A frontend
   on Vercel needs another way, which is not designed yet (short-lived tokens
   were the idea).
+- **One backend per domain** (owner decision, 2026-10-14). A domain generally
+  has one backend Worker, like `nyuchi-console-backend`, and not many small
+  ones. Backends in different domains connect to each other through service
+  bindings.
 - **Business backend: `mukoko-business-backend`.** One new Rust Worker (not
   built yet) that Verify and Kweli sit on. It verifies WorkOS. Verify and Kweli
   can run on Vercel. This MCP server uses it too; as a Worker it reaches it
