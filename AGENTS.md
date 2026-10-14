@@ -39,8 +39,10 @@ Owner decision, 2026-10-14: every repo follows one stack.
   Workers that sit on top of it, and none has direct database access (no
   external database driver or connection string). A frontend on a
   Cloudflare Worker reaches its backend through a service binding. A frontend
-  on Vercel needs another way, which is not designed yet (short-lived tokens
-  were the idea).
+  on Vercel reaches its backend the same way a backend reaches the API, with a
+  short-lived token bound to its own key, so no single shared credential
+  exposes everything (owner decision, 2026-10-14). How the Vercel side holds
+  that key is not designed yet.
 - **One backend per domain** (owner decision, 2026-10-14). A domain generally
   has one backend Worker, like `nyuchi-console-backend`, and not many small
   ones. Backends in different domains connect to each other through service
