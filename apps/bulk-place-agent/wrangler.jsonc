@@ -149,8 +149,8 @@
       // the same daily budget.
       "FUNDI_AI_DAILY_BUDGET": "2000",
       // Coarse envelope only; the real guard is the country scope in
-    // packages/shared/src/scope.ts (Africa + IMF emerging and developing).
-    "FUNDI_BOUNDARY_BBOX": "-90,-180,90,180",
+      // packages/shared/src/scope.ts (Africa + IMF emerging and developing).
+      "FUNDI_BOUNDARY_BBOX": "-90,-180,90,180",
     },
   },
   // workers.dev Preview URLs, so the beta URL serves. Takes effect on the
