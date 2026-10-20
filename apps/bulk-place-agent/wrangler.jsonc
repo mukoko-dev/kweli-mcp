@@ -101,7 +101,9 @@
     // two requests (one hedge retry). When spent, places are written without a
     // description and stay re-enrichable.
     "FUNDI_AI_DAILY_BUDGET": "2000",
-    "FUNDI_BOUNDARY_BBOX": "-36,-26,38,64",
+    // Coarse envelope only; the real guard is the country scope in
+    // packages/shared/src/scope.ts (Africa + IMF emerging and developing).
+    "FUNDI_BOUNDARY_BBOX": "-90,-180,90,180",
   },
 
   // Worker Previews: the staging beta (nyuchi/.github#84). Every push to
@@ -146,7 +148,9 @@
       // Shared with production through the same D1 table: beta calls spend
       // the same daily budget.
       "FUNDI_AI_DAILY_BUDGET": "2000",
-      "FUNDI_BOUNDARY_BBOX": "-36,-26,38,64",
+      // Coarse envelope only; the real guard is the country scope in
+    // packages/shared/src/scope.ts (Africa + IMF emerging and developing).
+    "FUNDI_BOUNDARY_BBOX": "-90,-180,90,180",
     },
   },
   // workers.dev Preview URLs, so the beta URL serves. Takes effect on the

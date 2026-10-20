@@ -9,7 +9,12 @@ import type { MongoClient } from "mongodb";
 import { buildDeps, runTask } from "./agent";
 import { invokeAgentSpan } from "./tracing";
 import { buildSink, newSpanId, Tracer } from "@kweli-mcp/telemetry";
-import { markProcessing, markResult, markStatus } from "@kweli-mcp/shared";
+import {
+  BoundaryGuardError,
+  markProcessing,
+  markResult,
+  markStatus,
+} from "@kweli-mcp/shared";
 import { buildClient } from "@kweli-mcp/mongo";
 import type { SeedTask, TaskResult, TaskStatus } from "@kweli-mcp/shared";
 
@@ -105,10 +110,12 @@ export class FundiAgent extends Agent<Env, FundiState> {
       const attempts = this.state.attempts + 1;
       tracer.error("task.attempt_failed", e, {
         attempts,
-        willRetry: attempts < MAX_ATTEMPTS,
+        willRetry:
+          attempts < MAX_ATTEMPTS && !(e instanceof BoundaryGuardError),
       });
 
-      if (attempts < MAX_ATTEMPTS) {
+      // Out of scope is a final answer; retrying cannot change it.
+      if (attempts < MAX_ATTEMPTS && !(e instanceof BoundaryGuardError)) {
         this.setState({ ...this.state, status: "queued", attempts, error });
         await markStatus(this.env, task.taskId, "queued", error);
         await this.schedule(backoffSeconds(attempts), "retryTask");
