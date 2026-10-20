@@ -29,6 +29,9 @@ describe("decideAnonymous", () => {
       "tools/list",
       "ping",
       "notifications/initialized",
+      // The places map MCP App view must load for anonymous users.
+      "resources/list",
+      "resources/read",
     ]) {
       expect(
         decideAnonymous(JSON.stringify({ jsonrpc: "2.0", id: 1, method })),

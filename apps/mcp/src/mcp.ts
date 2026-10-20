@@ -21,6 +21,12 @@ import { McpAgent } from "agents/mcp";
 import { EJSON } from "bson";
 import type { MongoClient } from "mongodb";
 import { z } from "zod";
+import {
+  PLACES_APP_CSP,
+  PLACES_APP_HTML,
+  PLACES_APP_MIME,
+  PLACES_APP_URI,
+} from "./places-app";
 import { fetchM2MToken } from "@kweli-mcp/workos-m2m";
 import { buildSink, Tracer } from "@kweli-mcp/telemetry";
 import { getTaskStatus } from "@kweli-mcp/shared";
@@ -45,6 +51,7 @@ import {
 
 type ToolResult = {
   content: { type: "text"; text: string }[];
+  structuredContent?: Record<string, unknown>;
   isError?: boolean;
 };
 
@@ -595,15 +602,45 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
 
     // ---- public graph reads: places, organizations, verification ----
 
-    this.server.tool(
-      "search_places",
-      "Search the Mukoko knowledge graph for places (businesses, parks, schools, NGOs, media, government offices, landmarks — every entity type) by name or city. Returns compact rows with id, name, type, city, rating, verification tier.",
+    // The places map MCP App view: hosts that support MCP Apps render
+    // search_places results with it (see ./places-app.ts).
+    const uiMeta = { ui: { csp: PLACES_APP_CSP, prefersBorder: false } };
+    this.server.registerResource(
+      "places-map",
+      PLACES_APP_URI,
       {
-        query: z.string().optional(),
-        city: z.string().optional(),
-        limit: z.number().optional(),
+        title: "Kweli places map",
+        description:
+          "Map of search_places results with place cards; selecting one opens its Kweli profile card.",
+        mimeType: PLACES_APP_MIME,
+        _meta: uiMeta,
       },
-      { ...READ, title: "Search places" },
+      async () => ({
+        contents: [
+          {
+            uri: PLACES_APP_URI,
+            mimeType: PLACES_APP_MIME,
+            text: PLACES_APP_HTML,
+            _meta: uiMeta,
+          },
+        ],
+      }),
+    );
+
+    this.server.registerTool(
+      "search_places",
+      {
+        title: "Search places",
+        description:
+          "Search the Mukoko knowledge graph for places (businesses, parks, schools, NGOs, media, government offices, landmarks — every entity type) by name or city. Returns compact rows with id, name, type, city, rating, verification tier.",
+        inputSchema: {
+          query: z.string().optional(),
+          city: z.string().optional(),
+          limit: z.number().optional(),
+        },
+        annotations: { ...READ, title: "Search places" },
+        _meta: { ui: { resourceUri: PLACES_APP_URI } },
+      },
       async ({ query, city, limit }) => {
         try {
           const client = await this.getMongo();
@@ -622,8 +659,17 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
             .collection<PlaceDoc>(COLLECTION.places)
             .find(filter, { limit: cap })
             .toArray();
-          if (docs.length === 0) return ok("No places match that search.");
-          return ok(docs.map(compactPlaceRow));
+          const structuredContent = {
+            query: query ?? null,
+            city: city ?? null,
+            places: docs.map(mapPlaceRow),
+          };
+          if (docs.length === 0)
+            return {
+              ...ok("No places match that search."),
+              structuredContent,
+            };
+          return { ...ok(docs.map(compactPlaceRow)), structuredContent };
         } catch (e) {
           return fail(e);
         }
@@ -652,7 +698,7 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
               (doc.bundu as { verificationTier?: number } | undefined)
                 ?.verificationTier,
             ) || 0;
-          return ok({
+          const summary = {
             id: doc._id,
             name: doc.name,
             type: doc.placeType,
@@ -666,7 +712,11 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
             rating: doc.discovery?.aggregateRating ?? null,
             verification: { tier, label: tierSpec(tier).label },
             verifyUrl: verifyPlaceUrl(doc._id),
-          });
+          };
+          return {
+            ...ok(summary),
+            structuredContent: { ...summary, url: placeUrl(doc._id) },
+          };
         } catch (e) {
           return fail(e);
         }
@@ -880,6 +930,31 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * The Kweli web app resolves `/bars/<id>` to a place's canonical URL (a
+ * 301), so the card can link without the app's slug lookups.
+ */
+function placeUrl(id: unknown): string {
+  return `https://kweli.mukoko.com/bars/${encodeURIComponent(String(id))}`;
+}
+
+/** compactPlaceRow plus what the map card needs: coordinates, photo, link. */
+function mapPlaceRow(doc: Record<string, unknown>) {
+  const row = compactPlaceRow(doc);
+  const geo = doc.geo as { coordinates?: [number, number] } | undefined;
+  const media = doc.media as
+    | { coverImage?: string; image?: string[] }
+    | undefined;
+  return {
+    ...row,
+    lat: geo?.coordinates?.[1] ?? null,
+    lng: geo?.coordinates?.[0] ?? null,
+    image: media?.coverImage ?? media?.image?.[0] ?? null,
+    tierLabel: tierSpec(row.tier).label,
+    url: placeUrl(doc._id),
+  };
 }
 
 function compactPlaceRow(doc: Record<string, unknown>) {
