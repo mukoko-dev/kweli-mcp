@@ -34,8 +34,12 @@
   ],
 
   // OAuth codes/tokens/state for @cloudflare/workers-oauth-provider.
+  // This worker's OWN namespace (kweli-mcp-OAUTH_KV). Never share it with
+  // another OAuth provider: a token is valid wherever its KV entry is found,
+  // so a shared namespace would let a Kweli sign-in (any user) pass
+  // fundi-ingestion's org-restricted gate, which uses fundi-OAUTH_KV.
   "kv_namespaces": [
-    { "binding": "OAUTH_KV", "id": "7b3cb31f73744a73a6f4aef9a0aff61c" },
+    { "binding": "OAUTH_KV", "id": "8fea5eb8d450402da1ea7d07645cc81d" },
   ],
 
   // The two literal cross-worker bindings: seed_region/seed_admin_bulk call
@@ -123,7 +127,7 @@
       },
     ],
     "kv_namespaces": [
-      { "binding": "OAUTH_KV", "id": "7b3cb31f73744a73a6f4aef9a0aff61c" },
+      { "binding": "OAUTH_KV", "id": "8fea5eb8d450402da1ea7d07645cc81d" },
     ],
     "services": [
       { "binding": "BULK_PLACE_AGENT", "service": "kweli-bulk-place-agent" },
