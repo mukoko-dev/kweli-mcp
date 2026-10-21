@@ -150,7 +150,7 @@ interface EntityDoc {
 export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
   server = new McpServer({
     name: "kweli",
-    title: "Mukoko Kweli — Africa Trust Platform",
+    title: "Mukoko Kweli — Trust Platform for Africa and Emerging Markets",
     version: "1.0.0",
     description:
       "Places (every entity type), the organizations that operate them, the trust ladder that " +
