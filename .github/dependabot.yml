@@ -1,0 +1,30 @@
+# Dependabot version updates. Owner rule (2026-10-21): every Dependabot pull
+# request targets `staging`, never `main`; `staging` reaches `main` by a release.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: staging
+    schedule:
+      interval: weekly
+      day: monday
+    # A new release waits a week before Dependabot proposes it, so a hijacked
+    # or broken release has time to be caught and pulled first.
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: npm
+    directory: /
+    target-branch: staging
+    schedule:
+      interval: weekly
+      day: monday
+    # A new release waits a week before Dependabot proposes it, so a hijacked
+    # or broken release has time to be caught and pulled first.
+    cooldown:
+      default-days: 7
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
