@@ -34,8 +34,12 @@
   ],
 
   // OAuth codes/tokens/state for @cloudflare/workers-oauth-provider.
+  // This worker's OWN namespace (kweli-mcp-OAUTH_KV). Never share it with
+  // another OAuth provider: a token is valid wherever its KV entry is found,
+  // so a shared namespace would let a Kweli sign-in (any user) pass
+  // fundi-ingestion's org-restricted gate, which uses fundi-OAUTH_KV.
   "kv_namespaces": [
-    { "binding": "OAUTH_KV", "id": "7b3cb31f73744a73a6f4aef9a0aff61c" },
+    { "binding": "OAUTH_KV", "id": "8fea5eb8d450402da1ea7d07645cc81d" },
   ],
 
   // The two literal cross-worker bindings: seed_region/seed_admin_bulk call
@@ -58,7 +62,35 @@
   //
   // Cutover prerequisites are listed in MIGRATION.md ("Serving from
   // kweli.mukoko.com/mcp") — the Next.js app currently answers this path.
-  "routes": [{ "pattern": "kweli.mukoko.com/mcp*", "zone_name": "mukoko.com" }],
+  //
+  // The three `.well-known/*/mcp` routes carry MCP client discovery for this
+  // worker (RFC 9728 / RFC 8414 path-suffixed forms); the origin-root
+  // documents stay with the web app, which points them at WorkOS.
+  "routes": [
+    { "pattern": "kweli.mukoko.com/mcp*", "zone_name": "mukoko.com" },
+    {
+      "pattern": "kweli.mukoko.com/.well-known/oauth-protected-resource/mcp*",
+      "zone_name": "mukoko.com",
+    },
+    {
+      "pattern": "kweli.mukoko.com/.well-known/oauth-authorization-server/mcp*",
+      "zone_name": "mukoko.com",
+    },
+    {
+      "pattern": "kweli.mukoko.com/.well-known/openid-configuration/mcp*",
+      "zone_name": "mukoko.com",
+    },
+  ],
+
+  // The anonymous door's per-IP limit (public-gate.ts), as the Next.js MCP
+  // it replaces had: 60 calls a minute per IP.
+  "ratelimits": [
+    {
+      "name": "PUBLIC_RATE_LIMITER",
+      "namespace_id": "1101",
+      "simple": { "limit": 60, "period": 60 },
+    },
+  ],
 
   "observability": { "enabled": true },
 
@@ -95,7 +127,7 @@
       },
     ],
     "kv_namespaces": [
-      { "binding": "OAUTH_KV", "id": "7b3cb31f73744a73a6f4aef9a0aff61c" },
+      { "binding": "OAUTH_KV", "id": "8fea5eb8d450402da1ea7d07645cc81d" },
     ],
     "services": [
       { "binding": "BULK_PLACE_AGENT", "service": "kweli-bulk-place-agent" },

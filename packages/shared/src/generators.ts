@@ -4,6 +4,8 @@
 // ever sees uniform atomic tasks.
 
 import { buildClient, DB, COLLECTION } from "@kweli-mcp/mongo";
+import { BoundaryGuardError } from "./africa";
+import { countryInScope } from "./scope";
 import type { BulkIntent, SeedTaskInput } from "./types";
 
 interface CapitalDoc {
@@ -89,18 +91,24 @@ async function readCountrySettlements(
       .db(DB.places)
       .collection<SettlementDoc>(COLLECTION.placesGeo);
 
-    let countryId = country.countryPlaceId;
-    if (!countryId) {
-      const countryDoc = await geo.findOne(
-        { geoType: "country", isoCode: country.countryIso?.toUpperCase() },
-        { projection: { _id: 1 } },
+    const countryDoc = await geo.findOne<{ _id: string; isoCode?: string }>(
+      country.countryPlaceId
+        ? { _id: country.countryPlaceId, geoType: "country" }
+        : { geoType: "country", isoCode: country.countryIso?.toUpperCase() },
+      { projection: { _id: 1, isoCode: 1 } },
+    );
+    if (!countryDoc)
+      throw new Error(
+        `country not found in places.placesGeo: ${country.countryPlaceId ?? country.countryIso}`,
       );
-      if (!countryDoc)
-        throw new Error(
-          `country not found in places.placesGeo: ${country.countryIso}`,
-        );
-      countryId = countryDoc._id;
+    // Refuse the whole intent up front rather than queue a task per settlement
+    // that the agent would then refuse one by one.
+    if (!countryInScope(countryDoc.isoCode)) {
+      throw new BoundaryGuardError(
+        `country ${countryDoc.isoCode ?? countryDoc._id} is outside the Kweli country scope`,
+      );
     }
+    const countryId = countryDoc._id;
 
     const docs = await geo
       .find(

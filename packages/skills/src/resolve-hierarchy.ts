@@ -31,6 +31,8 @@ interface NominatimReverseResult {
 
 export interface ResolvedHierarchy {
   countryId: string | null;
+  // ISO 3166-1 alpha-2 from Nominatim, used for the country scope check.
+  countryCode: string | null;
   provinceId: string | null;
   containedInPlaceId: string | null;
   countryName: string | null;
@@ -120,6 +122,7 @@ export async function resolveHierarchy(
 
   return {
     countryId,
+    countryCode,
     provinceId,
     containedInPlaceId,
     countryName,
