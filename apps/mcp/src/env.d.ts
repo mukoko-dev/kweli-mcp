@@ -13,6 +13,10 @@ declare global {
     MCP_OBJECT: DurableObjectNamespace<KweliMcp>;
     DB: D1Database;
     OAUTH_KV: KVNamespace;
+    // Per-IP limit on the anonymous door (public-gate.ts); skipped if unbound.
+    PUBLIC_RATE_LIMITER?: {
+      limit(options: { key: string }): Promise<{ success: boolean }>;
+    };
     // Injected by @cloudflare/workers-oauth-provider at fetch time — not a
     // wrangler binding. It is the HELPERS surface (parseAuthRequest,
     // completeAuthorization, …), not the provider itself.

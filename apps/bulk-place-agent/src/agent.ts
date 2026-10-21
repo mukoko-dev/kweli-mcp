@@ -7,7 +7,14 @@ import type { Db, MongoClient } from "mongodb";
 import type { Tracer } from "@kweli-mcp/telemetry";
 import { reserveAiRequest } from "./ai-budget";
 import { AGENT_NAME, chatSpanFor } from "./tracing";
-import { type Bbox, boundaryBbox, guardRegion } from "@kweli-mcp/shared";
+import {
+  type Bbox,
+  BoundaryGuardError,
+  boundaryBbox,
+  countryAt,
+  countryInScope,
+  guardRegion,
+} from "@kweli-mcp/shared";
 import { DB } from "@kweli-mcp/mongo";
 import { encodePlusCode } from "@kweli-mcp/shared";
 import { ProviderRegistry } from "@kweli-mcp/shared";
@@ -90,18 +97,48 @@ export async function buildDeps(
   };
 }
 
+interface GeoDoc {
+  geo?: { coordinates?: [number, number] };
+  center?: [number, number];
+  centroid?: { coordinates?: [number, number] };
+  seedRadiusMeters?: number;
+  geoType?: string;
+  isoCode?: string;
+  parentPlaceId?: string;
+}
+
+// The ISO code of the country an admin region sits in, walking parentPlaceId
+// up from the region itself. Null when the chain reaches no country.
+async function adminCountryIso(
+  placesDb: Db,
+  doc: GeoDoc,
+): Promise<string | null> {
+  let cur: GeoDoc | null = doc;
+  for (let depth = 0; cur && depth < 8; depth++) {
+    if (cur.geoType === "country") return cur.isoCode ?? null;
+    if (!cur.parentPlaceId) return null;
+    cur = await placesDb
+      .collection("placesGeo")
+      .findOne<GeoDoc>(
+        { _id: cur.parentPlaceId as never },
+        { projection: { geoType: 1, isoCode: 1, parentPlaceId: 1 } },
+      );
+  }
+  return null;
+}
+
 // Resolves an `admin` region to a bbox via the places.placesGeo centroid.
 async function resolveAdminBbox(
   placesDb: Db,
   adminPlaceId: string,
-): Promise<{ bbox: Bbox; center: [number, number] }> {
-  const doc = await placesDb.collection("placesGeo").findOne<{
-    geo?: { coordinates?: [number, number] };
-    center?: [number, number];
-    centroid?: { coordinates?: [number, number] };
-    seedRadiusMeters?: number;
-    geoType?: string;
-  }>({ _id: adminPlaceId as never });
+): Promise<{
+  bbox: Bbox;
+  center: [number, number];
+  countryIso: string | null;
+}> {
+  const doc = await placesDb
+    .collection("placesGeo")
+    .findOne<GeoDoc>({ _id: adminPlaceId as never });
   if (!doc)
     throw new Error(
       `admin region not found in places.placesGeo: ${adminPlaceId}`,
@@ -125,7 +162,11 @@ async function resolveAdminBbox(
   if (!coords)
     throw new Error(`places.placesGeo doc ${adminPlaceId} has no centroid`);
   const radius = doc.seedRadiusMeters ?? 25_000;
-  return { bbox: radiusBbox(coords[0], coords[1], radius), center: coords };
+  return {
+    bbox: radiusBbox(coords[0], coords[1], radius),
+    center: coords,
+    countryIso: await adminCountryIso(placesDb, doc),
+  };
 }
 
 function dataConfidence(feature: OsmFeature): number {
@@ -145,12 +186,15 @@ export async function runTask(
   // Resolve the region to a bbox + containment hint.
   let bbox: Bbox;
   let containedInPlaceId: string | null = null;
-  if (task.region.kind === "point_radius") {
-    const [lng, lat] = task.region.center;
-    bbox = radiusBbox(lng, lat, task.region.radiusMeters);
-  } else if (task.region.kind === "bbox") {
-    const [s, w, n, e] = task.region.bbox;
-    bbox = { s, w, n, e };
+  if (task.region.kind === "point_radius" || task.region.kind === "bbox") {
+    if (task.region.kind === "point_radius") {
+      const [lng, lat] = task.region.center;
+      bbox = radiusBbox(lng, lat, task.region.radiusMeters);
+    } else {
+      const [s, w, n, e] = task.region.bbox;
+      bbox = { s, w, n, e };
+    }
+    await guardRegionCountry(deps, bbox);
   } else {
     const resolved = await resolveAdminBbox(
       deps.placesDb,
@@ -163,7 +207,12 @@ export async function runTask(
       { kind: "point_radius", center: resolved.center, radiusMeters: 1 },
       deps.boundary,
     );
-    if (!guard.ok) throw new Error(`boundary guard: ${guard.reason}`);
+    if (!guard.ok) throw new BoundaryGuardError(guard.reason ?? "outside");
+    if (!countryInScope(resolved.countryIso)) {
+      throw new BoundaryGuardError(
+        `admin region ${task.region.adminPlaceId} is in ${resolved.countryIso ?? "no known country"}, outside the Kweli country scope`,
+      );
+    }
   }
 
   // Every model call in this task gets a metadata-only `chat` span.
@@ -232,6 +281,12 @@ export async function runTask(
           feature.lat,
           feature.lon,
         );
+        // A region near a border can reach into an advanced economy; those
+        // places are outside the Kweli scope and are not written.
+        if (resolved.countryCode && !countryInScope(resolved.countryCode)) {
+          skipped++;
+          continue;
+        }
         hierarchy = {
           containedInPlaceId: resolved.containedInPlaceId ?? containedInPlaceId,
           countryId: resolved.countryId,
@@ -287,6 +342,33 @@ export async function runTask(
   };
   deps.tracer.info("task.done", { ...result });
   return result;
+}
+
+// Country scope check for point and bbox regions, made once on the region's
+// centre before any Overpass call. Fails closed: with no Nominatim endpoint the
+// check cannot run, so the task is refused rather than run unchecked. A centre
+// in no country (open sea off a coast) passes; each place is still checked.
+async function guardRegionCountry(deps: AgentDeps, bbox: Bbox): Promise<void> {
+  if (!deps.nominatim) {
+    throw new BoundaryGuardError(
+      "country scope check unavailable: no Nominatim endpoint configured",
+    );
+  }
+  const lat = (bbox.s + bbox.n) / 2;
+  const lon = (bbox.w + bbox.e) / 2;
+  let iso: string | null;
+  try {
+    iso = await countryAt(deps.nominatim, lat, lon);
+  } catch (e) {
+    // A lookup outage must not fail the task; each place is checked below.
+    deps.tracer.warn("scope.lookup_error", { error: String(e) });
+    return;
+  }
+  if (iso && !countryInScope(iso)) {
+    throw new BoundaryGuardError(
+      `region centre ${lat},${lon} is in ${iso}, outside the Kweli country scope`,
+    );
+  }
 }
 
 // The description a previous run already wrote for this OSM feature, if any.
