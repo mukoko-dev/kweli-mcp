@@ -20,7 +20,7 @@
     "@kweli-mcp/skills": "workspace:*",
     "@kweli-mcp/telemetry": "workspace:*",
     "@kweli-mcp/workos-m2m": "workspace:*",
-    "@modelcontextprotocol/sdk": "1.29.0",
+    "@modelcontextprotocol/sdk": "1.32.0",
     "agents": "^0.16.2",
     "bson": "7.2.0",
     "hono": "^4.13.7",
