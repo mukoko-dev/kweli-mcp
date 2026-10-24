@@ -1,7 +1,8 @@
 /**
- * The 4-tier Mukoko verification ladder — single source of truth for tier
- * labels and their Mzizi badge minerals (the `nyuchi-verified-badge`
- * contract). Tier 0 = unverified.
+ * The 5-tier Mukoko verification ladder (levels 0–4, `system.verification_tier`)
+ * — single source of truth for tier labels and their Mzizi badge minerals (the
+ * `mzizi-verified-badge` contract). Tier 0 = unverified, shown in the neutral
+ * grey (`--tier-unverified`), so it carries no mineral.
  *
  * This is a direct port of `nyuchi/kweli`'s `lib/verification-tiers.ts` (and
  * mirrored again in `nyuchi/api-gateway`'s `gateway/routers/kweli.py`
