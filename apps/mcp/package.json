@@ -14,7 +14,7 @@
     "build": "tsc --noEmit"
   },
   "dependencies": {
-    "@cloudflare/workers-oauth-provider": "^0.8.1",
+    "@cloudflare/workers-oauth-provider": "^1.2.4",
     "@kweli-mcp/mongo": "workspace:*",
     "@kweli-mcp/shared": "workspace:*",
     "@kweli-mcp/skills": "workspace:*",
