@@ -1,0 +1,59 @@
+<!--
+  MCP server evaluations for the Kweli MCP (apps/mcp), written to the
+  mcp-builder evaluation guide (reference/evaluation.md).
+
+  Ten read-only questions with one string-comparable answer each. They are
+  built on what is deterministic today: Plus Code geometry (kweli_compute_pluscode
+  is a pure function) and the fixed five-tier verification ladder that
+  kweli_get_verification reports. Graph-data questions (places, organizations,
+  counts) are left out on purpose: this worker serves no graph data until
+  MONGODB_URI is set at the cutover (MIGRATION.md), and counts that change are
+  not stable answers. Add stable graph questions (closed historical records)
+  once the graph is connected.
+
+  Every Plus Code answer was verified on 2026-11-01 by calling
+  kweli_compute_pluscode through the MCP SDK client against this server.
+  The tier answers are the ladder in packages/mongo/src/verification-tiers.ts.
+-->
+<evaluation>
+  <qa_pair>
+    <question>What is the standard 10-character Plus Code for Africa Unity Square in Harare, at latitude -17.8292 and longitude 31.0522? Answer with the code only.</question>
+    <answer>5GJH53C2+8V</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Computing the Plus Code for latitude -17.8292, longitude 31.0522 at code length 11 instead of 10 appends exactly one character. Which character? Answer with that single character.</question>
+    <answer>8</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Do the 10-character Plus Codes of Victoria Falls town (-17.9243, 25.8572) and Livingstone (-17.8419, 25.8543) share the same first four characters? Respond True or False.</question>
+    <answer>True</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>What are the first four characters of the 10-character Plus Code for the Kenyatta International Convention Centre in Nairobi (latitude -1.2884, longitude 36.8233)? Answer with the four characters only.</question>
+    <answer>6GCR</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>What is the coarsest Plus Code (code length 4) for Lagos Island at latitude 6.4541, longitude 3.3947? Answer with the full code as returned, including padding and the plus sign.</question>
+    <answer>6FR50000+</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>In the 10-character Plus Code for the Castle of Good Hope in Cape Town (latitude -33.9258, longitude 18.4276), which character comes immediately after the plus sign? Answer with that single character.</question>
+    <answer>M</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Of Accra (latitude 5.55, longitude -0.2) and Kumasi (latitude 6.6885, longitude -1.6244), which city's 10-character Plus Code begins with "6CR"? Answer Accra or Kumasi.</question>
+    <answer>Kumasi</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>On the Kweli verification ladder, which tier label carries the Gold badge mineral? Answer with the label exactly as Kweli reports it.</question>
+    <answer>government</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which badge mineral marks the highest tier on the Kweli verification ladder? Answer with the mineral name only.</question>
+    <answer>Tanzanite</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Kweli describes one tier as "Contact Verified". What is that tier's number on the ladder? Answer with the number only.</question>
+    <answer>2</answer>
+  </qa_pair>
+</evaluation>
