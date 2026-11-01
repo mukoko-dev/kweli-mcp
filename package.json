@@ -25,14 +25,19 @@
   "pnpm": {
     "overrides": {
       "bson": "7.2.0",
-      "hono": "^4.12.26",
-      "@modelcontextprotocol/sdk": "1.29.0",
-      "undici": "^7.30.0",
+      "hono": "^4.13.11",
+      "@modelcontextprotocol/sdk": "1.32.1",
+      "undici": "^7.30.1",
       "brace-expansion@5": "^5.0.12",
-      "fast-uri": "^3.1.8",
-      "ip-address": "^10.7.3",
+      "fast-uri": "^3.1.9",
+      "ip-address": "^10.7.4",
       "qs": "^6.16.0",
-      "sharp": "^0.35.5"
+      "body-parser": "^2.4.0",
+      "proxy-addr": "^2.0.8",
+      "smol-toml": "^1.9.0",
+      "vite": "^8.3.5",
+      "sharp": "^0.35.5",
+      "zod@<4.6.6": ">=4.6.6"
     }
   }
 }
