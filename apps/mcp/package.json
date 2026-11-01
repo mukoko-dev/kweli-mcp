@@ -21,18 +21,18 @@
     "@kweli-mcp/telemetry": "workspace:*",
     "@kweli-mcp/workos-m2m": "workspace:*",
     "@modelcontextprotocol/server": "2.4.0",
-    "bson": "7.2.0",
-    "hono": "^4.13.11",
-    "jose": "^6.2.3",
-    "mongodb": "7.2.0",
+    "bson": "7.3.3",
+    "hono": "^4.13.14",
+    "jose": "^6.2.13",
+    "mongodb": "7.7.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260801.1",
+    "@cloudflare/workers-types": "^5.20261025.1",
     "@modelcontextprotocol/client": "2.4.0",
     "@types/node": "^25.9.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.12",
-    "wrangler": "^4.147.0"
+    "wrangler": "^4.152.0"
   }
 }
