@@ -19,7 +19,7 @@
     "fmt": "vp fmt"
   },
   "devDependencies": {
-    "turbo": "^2.5.0",
+    "turbo": "^2.11.10",
     "typescript": "^6.0.3"
   },
   "pnpm": {
