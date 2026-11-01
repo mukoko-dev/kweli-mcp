@@ -1,6 +1,6 @@
 // Kweli MCP worker entrypoint.
-//   • <base> — WorkOS OAuth-gated (Authorization Code + PKCE) MCP surface,
-//     KweliMcp (see mcp.ts): every Kweli function — graph reads, verification,
+//   • <base> — the MCP endpoint (mcp-handler.ts: the official SDK v2's
+//     stateless Streamable HTTP handler over server.ts): every Kweli function — graph reads, verification,
 //     and place generation — in one place. `<base>` is the worker's mount
 //     point, `/mcp` by default (see paths.ts): the deployed endpoint is
 //     `https://kweli.mukoko.com/mcp`.
@@ -20,7 +20,7 @@ import {
   createKweliAuthkitHandler,
   type KweliAuthkitApp,
 } from "./authkit-handler";
-import { KweliMcp } from "./mcp";
+import { kweliMcpHandler } from "./mcp-handler";
 import { mcpBasePath } from "./paths";
 import {
   decideAnonymous,
@@ -29,8 +29,6 @@ import {
   signInRequired,
   withMountIssuer,
 } from "./public-gate";
-
-export { KweliMcp };
 
 // The mount point comes from the environment, which a Worker only has at fetch
 // time — so the provider is built on first request and cached per isolate,
@@ -50,11 +48,13 @@ function mountFor(basePath: string): Mount {
   const defaultHandler = createKweliAuthkitHandler(basePath);
   const options: OAuthProviderOptions<Env> = {
     apiRoute: basePath,
-    apiHandler: KweliMcp.serve(basePath) as never,
+    apiHandler: kweliMcpHandler as never,
     defaultHandler: defaultHandler as never,
     authorizeEndpoint: `${basePath}/authorize`,
     tokenEndpoint: `${basePath}/token`,
     clientRegistrationEndpoint: `${basePath}/register`,
+    // OAuth 2.1: S256 only. `plain` PKCE offers no protection.
+    allowPlainPKCE: false,
   };
 
   const mount: Mount = {
@@ -156,10 +156,7 @@ export default {
         }
         forward = new Request(request, { body: decision.body ?? raw });
       }
-      const anonymous = options.apiHandler as unknown as {
-        fetch(r: Request, e: Env, c: ExecutionContext): Promise<Response>;
-      };
-      return anonymous.fetch(forward, env, ctx);
+      return kweliMcpHandler.fetch(forward, env, ctx);
     }
 
     if (!belongsToProvider) {

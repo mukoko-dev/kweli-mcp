@@ -41,13 +41,27 @@ describe("decideAnonymous", () => {
 
   it("asks for sign-in for generation and internal tools", () => {
     for (const tool of [
-      "seed_region",
-      "seed_admin_bulk",
-      "request_place",
-      "task_status",
-      "list_recent_places",
+      "kweli_seed_region",
+      "kweli_seed_admin_bulk",
+      "kweli_request_place",
+      "kweli_get_task_status",
+      "kweli_get_task_records",
+      "kweli_list_recent_places",
+      "kweli_overpass_lookup",
+      "kweli_resolve_hierarchy",
+      "kweli_list_geo_areas",
     ]) {
       expect(decideAnonymous(call(tool))).toEqual({ kind: "sign_in", tool });
+    }
+  });
+
+  it("still gates a gated tool called by its legacy, unprefixed name", () => {
+    for (const [legacy, tool] of [
+      ["seed_region", "kweli_seed_region"],
+      ["task_status", "kweli_get_task_status"],
+      ["overpass_lookup", "kweli_overpass_lookup"],
+    ]) {
+      expect(decideAnonymous(call(legacy!))).toEqual({ kind: "sign_in", tool });
     }
   });
 
@@ -59,10 +73,10 @@ describe("decideAnonymous", () => {
   });
 
   it("gates a batch if any call in it is gated", () => {
-    const batch = `[${call("search_places", 1)},${call("seed_region", 2)}]`;
+    const batch = `[${call("kweli_search_places", 1)},${call("kweli_seed_region", 2)}]`;
     expect(decideAnonymous(batch)).toEqual({
       kind: "sign_in",
-      tool: "seed_region",
+      tool: "kweli_seed_region",
     });
   });
 
@@ -70,11 +84,16 @@ describe("decideAnonymous", () => {
     const d = decideAnonymous(call("search_venues"));
     expect(d.kind).toBe("anonymous");
     const body = JSON.parse((d as { body: string }).body);
-    expect(body.params.name).toBe("search_places");
+    expect(body.params.name).toBe("kweli_search_places");
     const v = JSON.parse(
       (decideAnonymous(call("get_venue")) as { body: string }).body,
     );
-    expect(v.params.name).toBe("get_place");
+    expect(v.params.name).toBe("kweli_get_place");
+    // This worker's own pre-prefix names are legacy aliases too.
+    const p = JSON.parse(
+      (decideAnonymous(call("search_places")) as { body: string }).body,
+    );
+    expect(p.params.name).toBe("kweli_search_places");
   });
 
   it("forwards a body that is not JSON untouched, for the transport to reject", () => {

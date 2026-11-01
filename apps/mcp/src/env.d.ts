@@ -3,14 +3,15 @@
 // command needs a live Cloudflare account/session this sandbox doesn't have).
 // Keep this in sync with wrangler.jsonc's bindings by hand until then.
 
-import type { KweliMcp } from "./mcp";
 import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 
 export {};
 
 declare global {
   interface Env {
-    MCP_OBJECT: DurableObjectNamespace<KweliMcp>;
+    // Extra browser Origin hostnames allowed on the MCP endpoint
+    // (comma-separated). The request's own host and kweli.mukoko.com always are.
+    MCP_ALLOWED_ORIGINS?: string;
     DB: D1Database;
     OAUTH_KV: KVNamespace;
     // Per-IP limit on the anonymous door (public-gate.ts); skipped if unbound.

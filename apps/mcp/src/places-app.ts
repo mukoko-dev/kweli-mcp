@@ -1,8 +1,8 @@
 /**
  * Kweli places map — the MCP App (ported from mukoko-dev/kweli
  * `lib/mcp/places-app.ts`; keep the two in step until that route retires) (io.modelcontextprotocol/ui) that hosts
- * render for `search_places` results: a map of rating pins over a row of
- * place cards. Selecting a place calls `get_place` back through the host
+ * render for `kweli_search_places` results: a map of rating pins over a row of
+ * place cards. Selecting a place calls `kweli_get_place` back through the host
  * and opens a small detail card under the map.
  *
  * Served as the `ui://kweli/places-map.html` resource (see
@@ -211,7 +211,7 @@ export const PLACES_APP_HTML = `<!doctype html>
     actions.appendChild(open);
     d.appendChild(actions);
 
-    request("tools/call", { name: "get_place", arguments: { id: p.id } }).then(function (res) {
+    request("tools/call", { name: "kweli_get_place", arguments: { id: p.id } }).then(function (res) {
       if (selected !== p.id) return;
       var s = res && res.structuredContent;
       lines.textContent = "";
