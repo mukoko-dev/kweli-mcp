@@ -1,0 +1,46 @@
+# Versioning policy (nyuchi/.github#80): a release of `staging` into `main`
+# is the next MINOR, tagged on the merged commit and published as the
+# latest GitHub release. Patches are tagged on `staging` (staging-version.yml);
+# a major is only ever by hand (workflow_dispatch, bump: major).
+#
+# The tag is pushed with GITHUB_TOKEN, so it starts no other workflow; the
+# production deploy runs on the `main` push itself.
+name: Main release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Override the bump (major is only ever manual).
+        type: choice
+        options: [minor, major]
+        default: minor
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    uses: nyuchi/.github/.github/workflows/reusable-staging-release.yml@c2be05a22aeb6a98a80a9301f6b3e33bb88b20b0  # v0.2.0
+    with:
+      bump: ${{ inputs.bump || 'minor' }}
+      create-release: false
+    permissions:
+      contents: write
+
+  release:
+    needs: version
+    if: needs.version.outputs.created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: gh release create "$TAG" --verify-tag --latest --title "$TAG" --generate-notes
