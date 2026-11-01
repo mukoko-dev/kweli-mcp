@@ -783,7 +783,7 @@ export class KweliMcp extends McpAgent<Env, unknown, Record<string, unknown>> {
 
     this.server.tool(
       "get_verification",
-      "Return the verification tier for a place OR an organization on the 4-tier Mukoko ladder (1 community/Terracotta, 2 otp/Cobalt, 3 government/Gold, 4 licensed/Tanzanite; 0 unverified), plus the Kweli verification gateway URL. Pass exactly one of placeId or entityId.",
+      "Return the verification tier for a place OR an organization on the 5-tier Mukoko ladder (0 unverified, 1 community/Terracotta, 2 otp/Cobalt 'Contact Verified', 3 government/Gold, 4 licensed/Tanzanite), plus the Kweli verification gateway URL. Pass exactly one of placeId or entityId.",
       { placeId: z.string().optional(), entityId: z.string().optional() },
       { ...READ, title: "Get verification status" },
       async ({ placeId, entityId }) => {
