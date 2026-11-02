@@ -79,36 +79,46 @@ enqueue real work on the agents.
 
 **Generation** — forwarded to an agent's public `POST /tasks`:
 
-| Tool              | What it does                                                    |
-| ----------------- | --------------------------------------------------------------- |
-| `seed_region`     | Enqueue a bulk seed for a region. Returns a task id immediately |
-| `seed_admin_bulk` | Fan one intent (e.g. every African capital) out into many tasks |
-| `request_place`   | Create exactly one named place, not an area sweep               |
+| Tool                    | What it does                                                    |
+| ----------------------- | --------------------------------------------------------------- |
+| `kweli_seed_region`     | Enqueue a bulk seed for a region. Returns a task id immediately |
+| `kweli_seed_admin_bulk` | Fan one intent (e.g. every African capital) out into many tasks |
+| `kweli_request_place`   | Create exactly one named place, not an area sweep               |
 
 **Ingestion inspection** — the D1 ledger and Mongo:
 
-| Tool                 | What it does                                                |
-| -------------------- | ----------------------------------------------------------- |
-| `task_status`        | Look a task up by id                                        |
-| `task_records`       | Exactly what one task built, by logged id — deterministic   |
-| `list_recent_places` | Tier-0 places Fundi created, newest or nearest first        |
-| `compute_pluscode`   | Open Location Code from lat/lng, locally, no API            |
-| `overpass_lookup`    | Query OSM/Overpass in a bounding box. Read-only             |
-| `resolve_hierarchy`  | Reverse-geocode and preview the hierarchy a place would get |
-| `list_geo_areas`     | Seeded administrative areas in `placesGeo`                  |
+| Tool                       | What it does                                                |
+| -------------------------- | ----------------------------------------------------------- |
+| `kweli_get_task_status`    | Look a task up by id                                        |
+| `kweli_get_task_records`   | Exactly what one task built, by logged id — deterministic   |
+| `kweli_list_recent_places` | Tier-0 places Fundi created, newest or nearest first        |
+| `kweli_compute_pluscode`   | Open Location Code from lat/lng, locally, no API            |
+| `kweli_overpass_lookup`    | Query OSM/Overpass in a bounding box. Read-only             |
+| `kweli_resolve_hierarchy`  | Reverse-geocode and preview the hierarchy a place would get |
+| `kweli_list_geo_areas`     | Seeded administrative areas in `placesGeo`                  |
 
 **Graph reads** — the public trust platform:
 
-| Tool               | What it does                            |
-| ------------------ | --------------------------------------- |
-| `search_places`    | Search by name or city                  |
-| `get_place`        | One place by id or slug                 |
-| `get_organization` | An organization's public trust profile  |
-| `get_verification` | The tier for a place or an organization |
-| `get_open_stats`   | Open aggregates over the whole graph    |
+| Tool                     | What it does                            |
+| ------------------------ | --------------------------------------- |
+| `kweli_search_places`    | Search by name or city                  |
+| `kweli_get_place`        | One place by id or slug                 |
+| `kweli_get_organization` | An organization's public trust profile  |
+| `kweli_get_verification` | The tier for a place or an organization |
+| `kweli_get_open_stats`   | Open aggregates over the whole graph    |
 
-Unlike `kweli`'s in-app `/mcp`, this server does not carry the deprecated
-`search_venues` and `get_venue` aliases.
+The server runs on the official MCP TypeScript SDK v2
+(`@modelcontextprotocol/server`). It is stateless Streamable HTTP with a fresh
+server per request, validates `Origin`, and answers 2026-07-28 and 2025-era
+clients. List tools take `limit`/`offset` and return `total`, `has_more` and
+`next_offset`, and every result stays under 25,000 characters.
+
+The graph reads and `kweli_compute_pluscode` are open, rate-limited to 60 calls
+a minute per IP. Every other tool needs a WorkOS sign-in: called without one,
+it answers 401 with an RFC 9728 `resource_metadata` pointer. The pre-prefix
+names (`search_places`, `task_status`, …) and the Next.js MCP's `search_venues`
+and `get_venue` stay callable as unlisted aliases. Evaluations live in
+`apps/mcp/evals/evals.xml`.
 
 ---
 

@@ -14,22 +14,40 @@
 
 /** Tools anyone may call without signing in. */
 export const PUBLIC_TOOLS: ReadonlySet<string> = new Set([
-  "search_places",
-  "get_place",
-  "get_organization",
-  "get_verification",
-  "get_open_stats",
-  "compute_pluscode",
+  "kweli_search_places",
+  "kweli_get_place",
+  "kweli_get_organization",
+  "kweli_get_verification",
+  "kweli_get_open_stats",
+  "kweli_compute_pluscode",
 ]);
 
 /**
- * Names the anonymous Next.js MCP (mukoko-dev/kweli app/mcp/route.ts)
- * accepted and this worker does not register. Kept callable so existing
- * clients survive the cutover; they are not listed.
+ * Names this server answers to but does not list: the unprefixed names the
+ * anonymous Next.js MCP (mukoko-dev/kweli app/mcp/route.ts) and earlier builds
+ * of this worker registered, plus that MCP's deprecated venue aliases. Kept
+ * callable so existing clients survive the rename to `kweli_*` and the
+ * cutover. `rewriteLegacyToolNames` applies them on both the anonymous and
+ * the signed-in path.
  */
 export const LEGACY_ALIASES: Readonly<Record<string, string>> = {
-  search_venues: "search_places",
-  get_venue: "get_place",
+  search_venues: "kweli_search_places",
+  get_venue: "kweli_get_place",
+  search_places: "kweli_search_places",
+  get_place: "kweli_get_place",
+  get_organization: "kweli_get_organization",
+  get_verification: "kweli_get_verification",
+  get_open_stats: "kweli_get_open_stats",
+  compute_pluscode: "kweli_compute_pluscode",
+  seed_region: "kweli_seed_region",
+  seed_admin_bulk: "kweli_seed_admin_bulk",
+  request_place: "kweli_request_place",
+  task_status: "kweli_get_task_status",
+  task_records: "kweli_get_task_records",
+  list_recent_places: "kweli_list_recent_places",
+  overpass_lookup: "kweli_overpass_lookup",
+  resolve_hierarchy: "kweli_resolve_hierarchy",
+  list_geo_areas: "kweli_list_geo_areas",
 };
 
 type JsonRpcMessage = {
@@ -76,6 +94,34 @@ export function decideAnonymous(raw: string): GateDecision {
   return rewritten
     ? { kind: "anonymous", body: JSON.stringify(parsed) }
     : { kind: "anonymous" };
+}
+
+/**
+ * Rewrite legacy tool names in a JSON-RPC body to their `kweli_*` names.
+ * Returns the body to forward, or `undefined` when nothing changed (so the
+ * original request can be forwarded untouched). A body that is not JSON is
+ * left for the MCP transport to reject.
+ */
+export function rewriteLegacyToolNames(raw: string): string | undefined {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+  const messages = Array.isArray(parsed) ? parsed : [parsed];
+  let rewritten = false;
+  for (const m of messages) {
+    if (!isMessage(m) || m.method !== "tools/call" || !m.params) continue;
+    const name = m.params.name;
+    if (typeof name !== "string") continue;
+    const target = LEGACY_ALIASES[name];
+    if (target) {
+      m.params.name = target;
+      rewritten = true;
+    }
+  }
+  return rewritten ? JSON.stringify(parsed) : undefined;
 }
 
 /** Where this worker's RFC 9728 protected-resource metadata lives. */
