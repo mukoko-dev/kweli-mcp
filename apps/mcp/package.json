@@ -30,7 +30,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260801.1",
     "@modelcontextprotocol/client": "2.4.0",
-    "@types/node": "^25.9.0",
+    "@types/node": "^26.6.6",
     "typescript": "^6.0.3",
     "vitest": "^4.1.12",
     "wrangler": "^4.147.0"
