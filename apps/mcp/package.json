@@ -22,7 +22,7 @@
     "@kweli-mcp/workos-m2m": "workspace:*",
     "@modelcontextprotocol/server": "2.4.0",
     "bson": "7.2.0",
-    "hono": "^4.13.11",
+    "hono": "^4.13.16",
     "jose": "^6.2.3",
     "mongodb": "7.2.0",
     "zod": "^4.6.7"
