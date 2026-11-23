@@ -3,7 +3,7 @@ import path from "node:path";
 import {
   cloudflareTest,
   readD1Migrations,
-} from "@cloudflare/vitest-pool-workers";
+} from "@cloudflare/vitest-plugin";
 import { defineConfig } from "vitest/config";
 
 // Runs against REAL workerd with a REAL D1 (SQLite), not a mock. That's the
@@ -16,16 +16,16 @@ import { defineConfig } from "vitest/config";
 // D1 layer (packages/shared's ledger), and pulling in src/index.ts would drag
 // the mongodb driver into the isolate for no benefit.
 //
-// NOTE the API shape: @cloudflare/vitest-pool-workers >= 0.20 (the vitest 4
-// line) dropped the `./config` subpath and its `defineWorkersConfig` wrapper
-// in favour of the `cloudflareTest` Vite plugin exported from the root. Most
-// documentation and examples still show the old form.
+// NOTE the API shape: @cloudflare/vitest-plugin (the successor to the
+// deprecated vitest-pool-workers) exposes the `cloudflareTest` Vite plugin
+// from the root, with no `./config` subpath or `defineWorkersConfig` wrapper.
+// Most documentation and examples still show the old form.
 export default defineConfig({
   plugins: [
     cloudflareTest(async () => ({
       singleWorker: true,
       miniflare: {
-        compatibilityDate: "2025-04-01",
+        compatibilityDate: "2026-11-01",
         compatibilityFlags: ["nodejs_compat"],
         d1Databases: ["DB"],
         // Read by the setup file to bring each isolated database up to date.
