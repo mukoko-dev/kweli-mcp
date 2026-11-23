@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "Shared MongoDB client + the Mukoko verification-tier ladder. Consumed by every app in this monorepo that reads/writes the shared Mukoko cluster \u2014 must never drift from kweli's own lib/mongodb/client.ts and lib/verification-tiers.ts.",
+  "description": "Shared MongoDB client + the Mukoko verification-tier ladder. Consumed by every app in this monorepo that reads/writes the shared Mukoko cluster — must never drift from kweli's own lib/mongodb/client.ts and lib/verification-tiers.ts.",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -11,11 +11,11 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "mongodb": "7.9.0"
+    "mongodb": "7.9.1"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20261114.1",
-    "typescript": "^6.0.3",
-    "@types/node": "^26.6.6"
+    "@cloudflare/workers-types": "^5.20261123.1",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
   }
 }
