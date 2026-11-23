@@ -1,9 +1,6 @@
 import path from "node:path";
 
-import {
-  cloudflareTest,
-  readD1Migrations,
-} from "@cloudflare/vitest-plugin";
+import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-plugin";
 import { defineConfig } from "vitest/config";
 
 // Runs against REAL workerd with a REAL D1 (SQLite), not a mock. That's the
