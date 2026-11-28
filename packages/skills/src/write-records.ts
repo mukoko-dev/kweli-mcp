@@ -36,15 +36,22 @@ export interface WriteOutcome {
   entityCreated: boolean;
 }
 
+function trimDashes(s: string): string {
+  let start = 0;
+  let end = s.length;
+  while (start < end && s[start] === "-") start++;
+  while (end > start && s[end - 1] === "-") end--;
+  return s.slice(start, end);
+}
+
 function slugify(name: string, idSuffix: string): string {
   const base = name
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
-  return `${base || "place"}-${idSuffix}`;
+    .replace(/[^a-z0-9]+/g, "-");
+  const trimmed = trimDashes(base).slice(0, 60);
+  return `${trimmed || "place"}-${idSuffix}`;
 }
 
 function addressFromTags(
