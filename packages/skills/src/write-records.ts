@@ -45,13 +45,13 @@ function trimDashes(s: string): string {
 }
 
 function slugify(name: string, idSuffix: string): string {
-  const base = trimDashes(name
+  const base = name
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-"))
-    .slice(0, 60);
-  return `${base || "place"}-${idSuffix}`;
+    .replace(/[^a-z0-9]+/g, "-");
+  const trimmed = trimDashes(base).slice(0, 60);
+  return `${trimmed || "place"}-${idSuffix}`;
 }
 
 function addressFromTags(
