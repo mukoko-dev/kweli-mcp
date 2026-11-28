@@ -106,8 +106,7 @@
     "FUNDI_BOUNDARY_BBOX": "-90,-180,90,180",
   },
 
-  // Worker Previews: the staging beta (nyuchi/.github#84). Every push to
-  // `staging` runs `wrangler preview --name staging` (.github/workflows/beta.yml).
+  // Worker Previews (`wrangler preview`, run by hand; nothing in CI runs it).
   // Previews inherit NOTHING from the top level, so each binding is repeated
   // here against the SAME production resources (owner rule: no staging data
   // stores). Each Preview gets its own Durable Object namespace automatically.
