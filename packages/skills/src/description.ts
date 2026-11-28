@@ -134,7 +134,19 @@ export function gatewayOptions(
 // ("Dynamic route 'places' not found"). That is configuration, not the place.
 export function isMissingRoute(e: unknown): boolean {
   const msg = e instanceof Error ? e.message : String(e);
-  return /7003|dynamic route .* not found/i.test(msg);
+  if (msg.includes("7003")) return true;
+  // Linear scan, not `/dynamic route .* not found/`: that pattern backtracks
+  // quadratically on a long message. `.` never crossed a line, so neither
+  // does this.
+  for (const line of msg.toLowerCase().split(/\r\n|[\n\r\u2028\u2029]/)) {
+    const at = line.indexOf("dynamic route ");
+    if (
+      at >= 0 &&
+      line.indexOf(" not found", at + "dynamic route ".length) >= 0
+    )
+      return true;
+  }
+  return false;
 }
 
 // Per isolate: once a route is known to be missing, go straight to the direct
@@ -164,7 +176,45 @@ export function extractText(out: unknown): string {
     [o.response, o.choices?.[0]?.message?.content].find(
       (v): v is string => typeof v === "string" && v.trim().length > 0,
     ) ?? "";
-  return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  return stripThinkBlocks(text).trim();
+}
+
+// Case-insensitive (ASCII) match of `needle` (lower case) at `at`.
+function matchesAt(s: string, at: number, needle: string): boolean {
+  if (at + needle.length > s.length) return false;
+  for (let j = 0; j < needle.length; j++) {
+    let c = s.charCodeAt(at + j);
+    if (c >= 65 && c <= 90) c += 32;
+    if (c !== needle.charCodeAt(j)) return false;
+  }
+  return true;
+}
+
+function indexOfCI(s: string, needle: string, from: number): number {
+  for (let i = from; i + needle.length <= s.length; i++) {
+    if (matchesAt(s, i, needle)) return i;
+  }
+  return -1;
+}
+
+// Removes each `<think>...</think>` block in one linear pass. The regex form
+// (`/<think>[\s\S]*?<\/think>/gi`) rescans to the end for every unclosed
+// `<think>`, which is quadratic on adversarial model output. An unclosed
+// opener is left as is, as before.
+export function stripThinkBlocks(text: string): string {
+  const OPEN = "<think>";
+  const CLOSE = "</think>";
+  let out = "";
+  let pos = 0;
+  for (;;) {
+    const open = indexOfCI(text, OPEN, pos);
+    if (open < 0) break;
+    const close = indexOfCI(text, CLOSE, open + OPEN.length);
+    if (close < 0) break; // no closer anywhere after: nothing more to strip
+    out += text.slice(pos, open);
+    pos = close + CLOSE.length;
+  }
+  return out + text.slice(pos);
 }
 
 async function runModel(
